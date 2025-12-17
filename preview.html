@@ -1,0 +1,38 @@
+<!-- This file is used to preview the editor when editing the repository's components -->
+<!DOCTYPE html>
+<html lang="en">
+        <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <link rel="icon" type="image/png" href="/microStudio.png">
+                <title>microStudio Editor</title>
+                <style>
+                        * {
+                                box-sizing: border-box;
+                                padding: 0;
+                                margin: 0;
+                        }
+
+                        html, body, main {
+                                width: 100%;
+                                height: 100%;
+                                padding: 0;
+                                margin: 0;
+                        }
+                </style>
+        </head>
+        <body>
+                <main>
+                        <span>Loading editor preview...</span>
+                </main>
+                <script>
+                        const documentMain = document.querySelector("main");
+                        documentMain.replaceChildren();
+
+                        import(`/editor.js?v=${Date.now()}`)
+                                .then(Editor => {
+                                        Editor.createEditor(documentMain);
+                                });
+                </script>
+        </body>
+</html>
