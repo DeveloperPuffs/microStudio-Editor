@@ -140,9 +140,15 @@ export function setupEditorLayout(editor) {
                 setPanelHeights(topPanelHeight, bottomPanelHeight);
         }
 
-        const containerResizeObserver = new ResizeObserver(() => {
-                containerWidthResized(editor.clientWidth);
-                containerHeightResized(editor.clientHeight);
+        const containerResizeObserver = new ResizeObserver(entries => {
+                for (const entry of entries) {
+                        if (entry.target !== editor) {
+                                continue;
+                        }
+
+                        containerWidthResized(editor.clientWidth);
+                        containerHeightResized(editor.clientHeight);
+                }
         })
 
         containerResizeObserver.observe(editor);

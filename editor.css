@@ -1,14 +1,23 @@
-:root {
+@import url("https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap");
+
+.editor {
+        --opacity-1: 0.87;
+        --opacity-2: 0.60;
+        --opacity-3: 0.38;
         --background-color-1: #141f25;
         --background-color-2: #375464;
+        /* A color between background color 1 and background color 2 */
+        --interaction-color: #263A45;
+        --foreground-color-1: rgba(255, 255, 255, var(--opacity-1));
+        --foreground-color-2: rgba(255, 255, 255, var(--opacity-2));
+        --foreground-color-3: rgba(255, 255, 255, var(--opacity-3));
         --border: 1px solid var(--background-color-2);
         --handle-size: 10px;
         --bar-size: 50px;
 
-}
-
-.editor {
+        font-family: "Inter", monospace;
         background-color: var(--background-color-1);
+        color: var(--foreground-color-1);
         overflow: hidden;
         box-sizing: border-box;
         position: relative;
@@ -19,12 +28,27 @@
         z-index: 1;
 }
 
-.container {
-        overflow: hidden;
-        position: absolute;
+.editor *::-webkit-scrollbar {
+        width: var(--handle-size);
+        height: var(--handle-size);
 }
 
-.horizonbtal-panel {
+.editor *::-webkit-scrollbar-track {
+        background: #394144;
+        border-radius: calc(var(--handle-size) / 2);
+}
+
+.editor *::-webkit-scrollbar-thumb {
+        background: #777c80;
+        border-radius: calc(var(--handle-size) / 2);
+}
+
+.editor *::-webkit-scrollbar-thumb:hover {
+        /* The background color of the thumb 50% lighter */
+        background: #bbbec0;
+}
+
+.horizontal-panel {
         left: 0;
         width: 100%;
         overflow: hidden;
@@ -72,4 +96,94 @@
         touch-action: none;
         overflow: hidden;
         z-index: 3;
+}
+
+.container {
+        overflow: hidden;
+        position: absolute;
+}
+
+.file-tree {
+        width: 100%;
+        height: 100%;
+        overflow: none;
+        position: relative;
+}
+
+.file-list {
+        --file-base-padding: 16px;
+        --file-depth-padding: 24px;
+
+        width: 100%;
+        height: 100%;
+        user-select: none;
+        list-style: none;
+        overflow-x: hidden;
+        overflow-y: auto;
+        /* Make sure that there is always some free space at the bottom
+        even when it is full and you have to scroll to get to the end. */
+        padding-bottom: var(--bar-size);
+}
+
+.file {
+        width: 100%;
+        cursor: pointer;
+        display: flex;
+        gap: calc(var(--file-base-padding) / 2);
+        padding-left: var(--file-base-padding);
+        padding-right: var(--file-base-padding);
+        padding-top: calc(var(--file-base-padding) / 2);
+        padding-bottom: calc(var(--file-base-padding) / 2);
+        background-color: var(--background-color-1);
+}
+
+.file:hover {
+        background-color: var(--interaction-color);
+}
+
+.file.hidden {
+        display: none;
+}
+
+.file.selected {
+        background-color: var(--background-color-2);
+}
+
+.file.dragging {
+        opacity: var(--opacity-3);
+}
+
+.file .label {
+        width: 100%;
+        height: 100%;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        flex: 1;
+}
+
+.file .delete {
+        opacity: 0;
+}
+
+.file:hover:not(.dragging) .delete {
+        opacity: var(--opacity-3);
+}
+
+.file .delete:hover {
+        opacity: var(--opacity-1);
+}
+
+.drop-line {
+        left: 0;
+        height: 2px;
+        position: absolute;
+        background-color: var(--background-color-2);
+        pointer-events: none;
+        overflow: hidden;
+        opacity: 0;
+}
+
+.drop-line.active {
+        opacity: 1;
 }
