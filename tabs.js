@@ -146,27 +146,13 @@ class TabDrag {
                         return;
                 }
 
-                const receivingRectangle = receivingElement.getBoundingClientRect();
-                if (event.clientX < receivingRectangle.left + receivingRectangle.width / 2) {
-                        this.dropPosition = TabDrag.DropPosition.LEFT;
-
-                        if (receivingElement.previousElementSibling === this.draggedElement) {
-                                this.dropLine.classList.remove("active");
-                                return;
-                        }
-                } else {
-                        this.dropPosition = TabDrag.DropPosition.RIGHT;
-
-                        if (receivingElement.nextElementSibling === this.draggedElement) {
-                                this.dropLine.classList.remove("active");
-                                return;
-                        }
-                }
-
                 event.preventDefault();
                 event.dataTransfer.dropEffect = "move";
                 this.receivingElement = receivingElement;
 
+                const receivingRectangle = receivingElement.getBoundingClientRect();
+                this.dropPosition = event.clientX < receivingRectangle.left + receivingRectangle.width / 2
+                        ? TabDrag.DropPosition.LEFT : TabDrag.DropPosition.RIGHT;
                 this.dropLine.style.left = this.dropPosition === TabDrag.DropPosition.LEFT
                         ? `${receivingRectangle.left - containerRectangle.left}px`
                         : `${receivingRectangle.right - containerRectangle.left}px`;

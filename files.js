@@ -480,6 +480,8 @@ class FolderNode extends ElementNode(ContainerNode) {
 }
 
 class FileDrag {
+        static FOLDER_HOVER_OPEN_DELAY = 500;
+
         static DropPosition = Object.freeze({
                 ABOVE: Symbol("ABOVE"),
                 BELOW: Symbol("BELOW")
@@ -496,8 +498,9 @@ class FileDrag {
                 this.fileList = editor.querySelector("#file-list");
                 this.dropLine = editor.querySelector("#file-drop-line");
                 this.draggedElement = element;
-                this.receivingElement = null;
-                this.dropPosition = null;
+                this._receivingElement = null;
+                this.folderOpenTimeout = null;
+                this._dropPosition = null;
                 this.onFinish = onFinish;
         }
 
@@ -505,8 +508,39 @@ class FileDrag {
                 return this.draggedElement.__node;
         }
 
+        get receivingElement() {
+                return this._receivingElement;
+        }
+
+        set receivingElement(receivingElement) {
+                if (receivingElement !== this._receivingElement) {
+                        if (this.folderOpenTimeout !== null) {
+                                clearTimeout(this.folderOpenTimeout);
+                                this.folderOpenTimeout = null;
+                        }
+                }
+
+                this._receivingElement = receivingElement;
+                this.dropLine.classList.toggle("active", receivingElement !== null);
+        }
+
         get receivingNode() {
                 return this.receivingElement?.__node ?? null;
+        }
+
+        get dropPosition() {
+                return this._dropPosition;
+        }
+
+        set dropPosition(dropPosition) {
+                if (this._dropPosition !== dropPosition) {
+                        if (this.folderOpenTimeout !== null) {
+                                clearTimeout(this.folderOpenTimeout);
+                                this.folderOpenTimeout = null;
+                        }
+                }
+
+                this._dropPosition = dropPosition;
         }
 
         dragStart(event) {
@@ -538,7 +572,7 @@ class FileDrag {
                         if (lastElement === this.draggedElement) {
                                 // The dragged element is the last visible element and it is already in the root
                                 if (lastElement.__node.parent === this.fileList.__node) {
-                                        this.dropLine.classList.remove("active");
+                                        this.receivingElement = null;
                                         return;
                                 }
                         }
@@ -546,7 +580,7 @@ class FileDrag {
                         if (this.draggedNode instanceof FolderNode && this.draggedNode.parent === this.fileList.__node) {
                                 // The dragged folder is already at the root, but the last visible element is a descendant of it
                                 if (lastElement.__node.isDescendantOf(this.draggedNode)) {
-                                        this.dropLine.classList.remove("active");
+                                        this.receivingElement = null;
                                         return;
                                 }
                         }
@@ -557,62 +591,26 @@ class FileDrag {
                                 event.dataTransfer.dropEffect = "move";
 
                                 // Dragging below the last element, allow a drop at the root
-                                this.dropLine.classList.add("active");
                                 this.dropLine.style.top = `${lastRectangle.bottom - containerRectangle.top}px`;
                                 this.dropLine.style.width = `${lastRectangle.width}px`;
                                 this.receivingElement = this.fileList;
                                 return;
                         }
 
-                        this.dropLine.classList.remove("active");
+                        this.receivingElement = null;
                         return;
                 }
 
                 // You can't drop a file above or below itself
                 if (receivingElement === this.draggedElement) {
-                        this.dropLine.classList.remove("active");
+                        this.receivingElement = null;
                         return;
                 }
 
                 if (this.draggedNode instanceof FolderNode) {
                         // Make sure you don't drop a folder into itself
                         if (receivingElement.__node.isDescendantOf(this.draggedNode)) {
-                                this.dropLine.classList.remove("active");
-                                return;
-                        }
-                }
-
-                const receivingRectangle = receivingElement.getBoundingClientRect();
-                if (event.clientY < receivingRectangle.top + receivingRectangle.height / 2) {
-                        this.dropPosition = FileDrag.DropPosition.ABOVE;
-
-                        let aboveElement = receivingElement.previousElementSibling;
-                        while (aboveElement !== null && aboveElement !== this.draggedElement && aboveElement.__node.hidden) {
-                                aboveElement = aboveElement.previousElementSibling;
-                        }
-
-                        if (aboveElement === this.draggedElement) {
-                                this.dropLine.classList.remove("active");
-                                return;
-                        }
-
-                        if (this.draggedNode instanceof FolderNode) {
-                                // This means an open folder is dragging below itself (nothing happens)
-                                if (aboveElement.__node.parent === this.draggedNode) {
-                                        this.dropLine.classList.remove("active");
-                                        return;
-                                }
-                        }
-                } else {
-                        this.dropPosition = FileDrag.DropPosition.BELOW;
-
-                        let belowElement = receivingElement.nextElementSibling;
-                        while (belowElement !== null && belowElement !== this.draggedElement && belowElement.__node.hidden) {
-                                belowElement = belowElement.nextElementSibling;
-                        }
-
-                        if (belowElement === this.draggedElement) {
-                                this.dropLine.classList.remove("active");
+                                this.receivingElement = null;
                                 return;
                         }
                 }
@@ -621,18 +619,29 @@ class FileDrag {
                 event.dataTransfer.dropEffect = "move";
                 this.receivingElement = receivingElement;
 
+                const receivingRectangle = receivingElement.getBoundingClientRect();
+                this.dropPosition = event.clientY < receivingRectangle.top + receivingRectangle.height / 2
+                        ? FileDrag.DropPosition.ABOVE : FileDrag.DropPosition.BELOW;
                 this.dropLine.style.top = this.dropPosition === FileDrag.DropPosition.ABOVE
                         ? `${receivingRectangle.top - containerRectangle.top}px`
                         : `${receivingRectangle.bottom - containerRectangle.top}px`;
 
                 // Make sure the width of the drop line matches even when there is a vertical scrollbar
                 this.dropLine.style.width = `${receivingRectangle.width}px`;
-                this.dropLine.classList.add("active");
+
+                if (this.receivingNode instanceof FolderNode && !this.receivingNode.expanded && this.dropPosition === FileDrag.DropPosition.BELOW) {
+                        if (this.folderOpenTimeout === null) {
+                                this.folderOpenTimeout = setTimeout(() => {
+                                        this.receivingNode.onClick();
+                                        this.folderOpenTimeout = null;
+                                }, FileDrag.FOLDER_HOVER_OPEN_DELAY);
+                        }
+                }
         }
 
         dragLeave(event) {
                 if (event.relatedTarget === null || !this.fileList.contains(event.relatedTarget)) {
-                        this.dropLine.classList.remove("active");
+                        this.receivingElement = null;
                 }
         }
 
