@@ -32,5 +32,5 @@ export async function createEditor(container) {
         setupEditorLayout(editor);
 
         const fileTree = container.querySelector("#file-tree");
-        setupEditorFileTree(fileTree);
+        setupEditorFileTree(editor, fileTree);
 };

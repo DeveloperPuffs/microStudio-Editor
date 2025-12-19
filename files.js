@@ -1,4 +1,6 @@
-class TreeNode {
+import { Modal } from "./modal.js";
+
+class BaseNode {
         constructor() {
                 this._parent = null;
         }
@@ -13,21 +15,24 @@ class TreeNode {
         }
 
         onParentChanged() {
+                // Should be overriden by subclasses if needed
         }
 
-        getDepthFromRoot() {
-                let nestedDepth = 0;
-                let currentParent = this.parent;
-                while (currentParent !== null) {
-                        if (currentParent instanceof RootNode) {
-                                return nestedDepth;
-                        }
-
-                        currentParent = currentParent.parent;
-                        ++nestedDepth;
+        getSiblings() {
+                if (this._parent === null) {
+                        return [];
                 }
 
-                return null;
+                const siblings = [];
+                this._parent.forEachChild(child => {
+                        if (child === this) {
+                                return;
+                        }
+
+                        siblings.push(child);
+                });
+
+                return siblings;
         }
 
         isDescendantOf(parent) {
@@ -44,7 +49,7 @@ class TreeNode {
         }
 }
 
-class ContainerNode extends TreeNode {
+class ContainerNode extends BaseNode {
         constructor() {
                 super();
 
@@ -63,11 +68,20 @@ class ContainerNode extends TreeNode {
                 this._children.forEach(action);
         }
 
+        getChildren() {
+                return [...this._children];
+        }
+
+        getChildCount() {
+                return this._children.length;
+        }
+
         // Places child (including all of its elements) after the sibling
         placeChild(child, sibling) {
                 const elements = child.getSubtreeElements();
 
                 if (sibling === null) {
+                        // If sibling is null, remove the child's elements
                         for (const element of elements) {
                                 element.remove();
                         }
@@ -75,10 +89,11 @@ class ContainerNode extends TreeNode {
                         return;
                 }
 
-                sibling.view.element.after(...elements);
+                const siblingElement = sibling.getElement();
+                siblingElement.after(...elements);
         }
 
-        addChild(node, index = this._children.length) {
+        addChild(node, index = this.getChildCount()) {
                 if (node === this || this.isDescendantOf(node)) {
                         return;
                 }
@@ -101,11 +116,12 @@ class ContainerNode extends TreeNode {
 
                 // If the sibling is a folder, find the last child of the sibling
                 while (sibling instanceof FolderNode) {
-                        if (sibling._children.length === 0) {
+                        const siblingChildren = sibling.getChildren();
+                        if (siblingChildren.length === 0) {
                                 break;
                         }
 
-                        sibling = sibling._children[sibling._children.length - 1];
+                        sibling = siblingChildren[siblingChildren.length - 1];
                 }
 
                 // If there is only one child (sibling === undefined)
@@ -145,7 +161,262 @@ class RootNode extends ContainerNode {
         }
 }
 
-class FileNode extends TreeNode {
+// A mixin for node classes that appear as elements in the file list
+// BaseNode -> ElementNode -> FileNode, BaseNode -> ContainerNode -> ElementNode -> FolderNode
+// ContainerNode is needed as a separate class because it is inherited by RootNode, which isn't an ElementNode
+function ElementNode(NodeClass) {
+        return class extends NodeClass {
+                constructor(editor, name, icon) {
+                        super();
+
+                        this.editor = editor;
+                        this._name = null;
+                        this._icon = null;
+                        this._renaming = false;
+
+                        this.element = document.createElement("li");
+                        this.element.setAttribute("draggable", true);
+                        this.element.classList.add("file");
+
+                        this.element.addEventListener("click", () => {
+                                this.onClick();
+                        });
+
+                        this.iconElement = document.createElement("div");
+                        this.element.appendChild(this.iconElement);
+
+                        this.labelElement = document.createElement("div");
+                        this.labelElement.classList.add("label");
+                        this.element.appendChild(this.labelElement);
+
+                        this.labelElement.addEventListener("dblclick", event => {
+                                event.stopPropagation();
+                                this.beginRenaming();
+                        });
+
+                        this.deleteElement = document.createElement("div");
+                        this.deleteElement.classList.add("delete");
+                        this.deleteElement.innerHTML = `<i class="fa-solid fa-trash"></i>`;
+                        this.element.appendChild(this.deleteElement);
+
+                        this.deleteElement.addEventListener("click", event => {
+                                event.stopPropagation();
+                                this.requestDeletion(true);
+                        });
+
+                        Object.defineProperty(this.element, "__node", {
+                                value: this,
+                                writable: false,
+                                configurable: false
+                        });
+
+                        this.name = name;
+                        this.icon = icon;
+                }
+
+                onClick() {
+                        // Should be overriden by subclasses if needed to
+                }
+
+                get name() {
+                        return this._name;
+                }
+
+                set name(name) {
+                        this._name = name;
+                        this.labelElement.textContent = name;
+                }
+
+                get icon() {
+                        return this._icon;
+                }
+
+                set icon(icon) {
+                        this._icon = icon;
+                        this.iconElement.innerHTML = icon;
+                }
+
+                get hidden() {
+                        return this.element.classList.contains("hidden");
+                }
+
+                set hidden(hidden) {
+                        this.element.classList.toggle("hidden", hidden);
+                }
+
+                getElement() {
+                        return this.element;
+                }
+
+                getSubtreeElements() {
+                        return [this.element];
+                }
+
+                canStartDrag() {
+                        return !this._renaming;
+                }
+
+                onParentChanged(parent) {
+                        super.onParentChanged(parent);
+
+                        // Loop over the descendants to update the visual state of the file
+
+                        let nestedDepth = 0;
+                        let currentParent = this.parent;
+                        while (currentParent !== null) {
+                                if (currentParent instanceof FolderNode) {
+                                        if (!currentParent.expanded) {
+                                                this.hidden = true;
+                                        }
+                                }
+
+                                if (currentParent instanceof RootNode) {
+                                        this.element.style.paddingLeft
+                                                = `calc(var(--file-base-padding) + var(--file-depth-padding) * ${nestedDepth})`;
+                                        break;
+                                }
+
+                                currentParent = currentParent.parent;
+                                ++nestedDepth;
+                        }
+                }
+
+                beginRenaming() {
+                        if (this._renaming) {
+                                return;
+                        }
+
+                        this._renaming = true;
+
+                        const input = document.createElement("input");
+                        input.type = "text";
+                        input.maxLength = 255;
+                        input.value = this._name;
+                        input.classList.add("rename");
+
+                        this.labelElement.replaceWith(input);
+
+                        input.focus();
+                        input.select();
+
+                        let finished = false;
+                        const error = this.editor.querySelector("#file-error");
+                        const fileList = this.editor.querySelector("#file-list");
+
+                        const showError = message => {
+                                const fileRectangle = this.element.getBoundingClientRect();
+                                const listRectangle = fileList.getBoundingClientRect();
+
+                                error.textContent = message;
+                                error.style.top = `${fileRectangle.bottom - listRectangle.top}px`;
+                                error.hidden = false;
+                        };
+
+                        const hideError = () => {
+                                error.hidden = true;
+                        }
+
+                        const commit = () => {
+                                const trimmedName = input.value.trim();
+                                if (trimmedName !== "") {
+                                        this.name = trimmedName;
+                                }
+
+                                cleanup();
+                        };
+
+                        const cleanup = () => {
+                                if (finished) {
+                                        return;
+                                }
+
+                                finished = true;
+                                hideError();
+
+                                input.replaceWith(this.labelElement);
+                                this._renaming = false;
+                        };
+
+                        input.addEventListener("input", () => {
+                                const trimmedName = input.value.trim();
+                                if (trimmedName === "") {
+                                        showError("Cannot have an empty file name");
+                                        return;
+                                }
+
+                                if (trimmedName[trimmedName.length - 1] === ".") {
+                                        showError(`Cannot name file "${trimmedName}": File name cannot end with "."`);
+                                        return;
+                                }
+
+                                if (/[\/\\\0<>:"|?*]/.test(trimmedName)) {
+                                        showError(`Cannot name file "${trimmedName}": File name contains invalid characters`);
+                                        return;
+                                }
+
+                                for (const sibling of this.getSiblings()) {
+                                        if (sibling.name === trimmedName) {
+                                                showError(`Cannot name file "${trimmedName}": File with same name already exists in folder`);
+                                                return;
+                                        }
+                                }
+
+                                hideError();
+                        });
+
+                        input.addEventListener("keydown", event => {
+                                if (event.key === "Enter" && error.hidden) {
+                                        commit();
+                                }
+
+                                if (event.key === "Escape") {
+                                        cleanup();
+                                }
+                        });
+
+                        input.addEventListener("blur", () => {
+                                if (error.hidden) {
+                                        commit();
+                                        return;
+                                }
+
+                                cleanup();
+                        });
+                }
+
+                async requestDeletion(confirmation) {
+                        if (!confirmation) {
+                                this.parent.removeChild(this);
+                                return;
+                        }
+
+                        const deleteConfirmation = new Modal(this.editor, {
+                                title: `Delete Item`,
+                                message: `
+                                        Are you sure you want to delete <code>${this.name}</code>
+                                        and all of its contents? This action is irreversible.
+                                `,
+                                buttons: [
+                                        {
+                                                label: "Cancel",
+                                                value: false
+                                        },
+                                        {
+                                                label: "Delete",
+                                                color: "var(--invalid-destructive-color)",
+                                                value: true
+                                        },
+                                ]
+                        });
+
+                        if (await deleteConfirmation.prompt()) {
+                                this.parent.removeChild(this);
+                        }
+                }
+        };
+}
+
+class FileNode extends ElementNode(BaseNode) {
         static Icon = Object.freeze({
                 source: `<i class="fa-solid fa-file-code"></i>`,
                 image: `<i class="fa-solid fa-file-image"></i>`,
@@ -155,62 +426,35 @@ class FileNode extends TreeNode {
                 doc: `<i class="fa-solid fa-file"></i>`,
         });
 
-        constructor(name, icon, callback = null) {
-                super();
-
-                this.view = new NodeView(this, name, icon, callback);
+        constructor(editor, name, icon, clickCallback = null) {
+                super(editor, name, icon);
+                this.clickCallback = clickCallback;
         }
 
-        onParentChanged(parent) {
-                super.onParentChanged(parent);
-
-                const depth = this.getDepthFromRoot();
-                if (depth === null) {
-                        return;
-                }
-
-                this.view.setIndentationDepth(depth);
-
-                let currentParent = parent;
-                while (!(currentParent instanceof RootNode)) {
-                        if (currentParent instanceof FolderNode) {
-                                if (!currentParent.expanded) {
-                                        this.view.hidden = true;
-                                        break;
-                                }
-                        }
-
-                        currentParent = currentParent.parent;
-                }
-        }
-
-        getSubtreeElements() {
-                return [this.view.element];
+        onClick() {
+                this.clickCallback?.();
         }
 }
 
-class FolderNode extends ContainerNode {
+class FolderNode extends ElementNode(ContainerNode) {
         static Icon = Object.freeze({
                 closed: `<i class="fa-solid fa-folder"></i>`,
                 open: `<i class="fa-solid fa-folder-open"></i>`
         });
 
-        constructor(name) {
-                super();
+        constructor(editor, name) {
+                super(editor, name, FolderNode.Icon.closed);
+        }
 
-                this.expanded = false;
-                this.view = new NodeView(this, name, FolderNode.Icon.closed, () => {
-                        this.expanded = !this.expanded;
-                        this.view.icon = this.expanded
-                                ? FolderNode.Icon.open
-                                : FolderNode.Icon.closed;
-                        this.setDescendantsVisibility(this.expanded);
-                });
+        onClick() {
+                this.expanded = !this.expanded;
+                this.icon = this.expanded ? FolderNode.Icon.open : FolderNode.Icon.closed;
+                this.setDescendantsVisibility(this.expanded);
         }
 
         setDescendantsVisibility(visible) {
                 this.forEachChild(child => {
-                        child.view.hidden = !visible;
+                        child.hidden = !visible;
 
                         if (child instanceof FolderNode) {
                                 child.setDescendantsVisibility(visible && child.expanded);
@@ -218,116 +462,18 @@ class FolderNode extends ContainerNode {
                 });
         }
 
-        onParentChanged(parent) {
-                super.onParentChanged(parent);
-
-                const depth = this.getDepthFromRoot();
-                if (depth === null) {
-                        return;
-                }
-
-                this.view.setIndentationDepth(depth);
-
-                let currentParent = parent;
-                while (!(currentParent instanceof RootNode)) {
-                        if (currentParent instanceof FolderNode) {
-                                if (!currentParent.expanded) {
-                                        this.view.hidden = true;
-                                        break;
-                                }
-                        }
-
-                        currentParent = currentParent.parent;
-                }
-        }
-
         getSubtreeElements() {
-                const elements = [];
-                const stack = [this];
-
-                while (stack.length > 0) {
-                        const currentNode = stack.pop();
-                        elements.push(currentNode.view.element);
-
-                        if (currentNode instanceof ContainerNode) {
-                                for (let index = currentNode._children.length - 1; index >= 0; --index) {
-                                        stack.push(currentNode._children[index]);
-                                }
-                        }
-                }
+                const elements = super.getSubtreeElements();
+                this.forEachChild(child => {
+                        const childSubtreeElements = child.getSubtreeElements();
+                        elements.push(...childSubtreeElements);
+                });
 
                 return elements;
         }
 }
 
-class NodeView {
-        constructor(node, name, icon, callback = null) {
-                this._name = null;
-                this._icon = null;
-                this.callback = callback;
-
-                this.element = document.createElement("li");
-                this.element.setAttribute("draggable", true);
-                this.element.classList.add("file");
-
-                this.iconElement = document.createElement("div");
-                this.element.appendChild(this.iconElement);
-
-                this.labelElement = document.createElement("div");
-                this.labelElement.classList.add("label");
-                this.element.appendChild(this.labelElement);
-
-                this.deleteElement = document.createElement("div");
-                this.deleteElement.classList.add("delete");
-                this.deleteElement.innerHTML = `<i class="fa-solid fa-trash"></i>`;
-                this.element.appendChild(this.deleteElement);
-
-                this.element.addEventListener("click", () => {
-                        this.callback?.();
-                });
-
-                Object.defineProperty(this.element, "__node", {
-                        value: node,
-                        writable: false,
-                        configurable: false
-                });
-
-                this.name = name;
-                this.icon = icon;
-        }
-
-        get name() {
-                return this._name;
-        }
-
-        set name(name) {
-                this._name = name;
-                this.labelElement.textContent = name;
-        }
-
-        get icon() {
-                return this._icon;
-        }
-
-        set icon(icon) {
-                this._icon = icon;
-                this.iconElement.innerHTML = icon;
-        }
-
-        get hidden() {
-                return this.element.classList.contains("hidden");
-        }
-
-        set hidden(hidden) {
-                this.element.classList.toggle("hidden", hidden);
-        }
-
-        setIndentationDepth(indentationDepth) {
-                this.element.style.paddingLeft = `calc(var(--file-base-padding) + var(--file-depth-padding) * ${indentationDepth})`;
-        }
-}
-
-export function setupEditorFileTree(fileTree) {
+export function setupEditorFileTree(editor, fileTree) {
         const fileList = fileTree.querySelector("#file-list");
         const dropLine = fileTree.querySelector("#drop-line");
         const rootNode = new RootNode(fileList);
@@ -355,7 +501,7 @@ export function setupEditorFileTree(fileTree) {
 
         fileList.addEventListener("dragstart", event => {
                 const element = event.target.closest(".file:not(.hidden):not(.dragging)");
-                if (element === null) {
+                if (element === null || !element.__node.canStartDrag()) {
                         return;
                 }
 
@@ -391,7 +537,7 @@ export function setupEditorFileTree(fileTree) {
 
                         // Find the last visible element, since the root is always expanded,
                         // it is guaranteed that there will be an element that is visible now
-                        while (lastElement.__node.view.hidden) {
+                        while (lastElement.__node.hidden) {
                                 lastElement = lastElement.previousElementSibling;
                         }
 
@@ -432,7 +578,7 @@ export function setupEditorFileTree(fileTree) {
 
                 if (dropPosition === DropPosition.ABOVE) {
                         let aboveElement = targetElement.previousElementSibling;
-                        while (aboveElement !== null && aboveElement !== draggedElement && aboveElement.__node.view.hidden) {
+                        while (aboveElement !== null && aboveElement !== draggedElement && aboveElement.__node.hidden) {
                                 aboveElement = aboveElement.previousElementSibling;
                         }
 
@@ -444,7 +590,7 @@ export function setupEditorFileTree(fileTree) {
 
                 if (dropPosition === DropPosition.BELOW) {
                         let belowElement = targetElement.nextElementSibling;
-                        while (belowElement !== null && belowElement !== draggedElement && belowElement.__node.view.hidden) {
+                        while (belowElement !== null && belowElement !== draggedElement && belowElement.__node.hidden) {
                                 belowElement = belowElement.nextElementSibling;
                         }
 
@@ -478,7 +624,89 @@ export function setupEditorFileTree(fileTree) {
                 finishDrag();
         });
 
-        fileList.addEventListener("drop", event => {
+        const NameClashDropOption = Object.freeze({
+                CANCEL: Symbol("CANCEL"),
+                RENAME: Symbol("RENAME"),
+                REPLACE: Symbol("REPLACE")
+        });
+
+        async function confirmDrop(receivingNode, droppedNode, droppedIndex) {
+                let replacedNode = null;
+                let shouldRename = false;
+
+                const futureSiblings = receivingNode.getChildren();
+                if (!futureSiblings.includes(droppedNode)) {
+                        // If the file is dropping in a different folder,
+                        // make sure there is no name clash between files
+                        for (const futureSibling of futureSiblings) {
+                                if (futureSibling.name === droppedNode.name) {
+                                        const nameClashModal = new Modal(editor, {
+                                                title: `Cannot Move Item`,
+                                                message: `An item in this folder already has the name "${droppedNode.name}".`,
+                                                buttons: [
+                                                        {
+                                                                label: "Cancel",
+                                                                value: NameClashDropOption.CANCEL
+                                                        },
+                                                        {
+                                                                label: "Rename",
+                                                                value: NameClashDropOption.RENAME
+                                                        },
+                                                        {
+                                                                label: "Replace",
+                                                                color: "var(--invalid-destructive-color)",
+                                                                value: NameClashDropOption.REPLACE
+                                                        }
+                                                ]
+                                        });
+
+                                        const option = await nameClashModal.prompt();
+                                        if (option === NameClashDropOption.CANCEL) {
+                                                return;
+                                        }
+
+                                        if (option === NameClashDropOption.RENAME) {
+                                                shouldRename = true;
+                                        }
+
+                                        if (option === NameClashDropOption.REPLACE) {
+                                                replacedNode = futureSibling;
+                                        }
+
+                                        break;
+                                }
+                        }
+                }
+
+                receivingNode.addChild(droppedNode, droppedIndex);
+
+                if (replacedNode !== null) {
+                        replacedNode.requestDeletion(false);
+                }
+
+                if (shouldRename) {
+                        let temporaryNameNumber = 0;
+                        let temporaryNameClash = true;
+                        while (temporaryNameClash) {
+                                ++temporaryNameNumber;
+                                temporaryNameClash = false;
+
+                                // I can use the previous siblings array because it didn't (and still dosen't) contain the newly dropped node
+                                const temporaryName = `${droppedNode.name} (${temporaryNameNumber})`;
+                                for (const currentSibling of futureSiblings) {
+                                        if (currentSibling.name === temporaryName) {
+                                                temporaryNameClash = true;
+                                                break;
+                                        }
+                                }
+                        }
+
+                        droppedNode.name = `${droppedNode.name} (${temporaryNameNumber})`;
+                        droppedNode.beginRenaming();
+                }
+        }
+
+        fileList.addEventListener("drop", async event => {
                 event.preventDefault();
 
                 if (draggedElement === null || receivingNode === null) {
@@ -488,52 +716,58 @@ export function setupEditorFileTree(fileTree) {
                 if (receivingNode === rootNode) {
                         // If the receiving node is the root, it means that I should add it to the end of the root
                         // if the dragged node is alread inside the root, shift the insertion index
-                        let insertionIndex = receivingNode._children.length;
-                        if (receivingNode._children.includes(draggedElement.__node)) {
-                                --insertionIndex;
+                        let droppedIndex = receivingNode.getChildCount();
+                        const futureSiblings = receivingNode.getChildren();
+                        if (futureSiblings.includes(draggedElement.__node)) {
+                                --droppedIndex;
                         }
 
-                        receivingNode.addChild(draggedElement.__node, insertionIndex);
+                        await confirmDrop(receivingNode, draggedElement.__node, droppedIndex);
+
                         finishDrag();
                         return;
                 }
 
+                // Dropping right below an open folder will make the node enter the dropped folder
                 if (receivingNode instanceof FolderNode && receivingNode.expanded && dropPosition === DropPosition.BELOW) {
-                        receivingNode.addChild(draggedElement.__node, 0);
+                        await confirmDrop(receivingNode, draggedElement.__node, 0);
+
                         finishDrag();
                         return;
                 }
 
-                let insertionIndex = receivingNode.parent._children.indexOf(receivingNode);
+                const futureSiblings = receivingNode.parent.getChildren();
+                let droppedIndex = futureSiblings.indexOf(receivingNode);
                 if (dropPosition === DropPosition.BELOW) {
-                        ++insertionIndex;
+                        ++droppedIndex;
                 }
 
-                // If the dragged file has the same praent as the drop target, shift the insertion index
-                const draggedIndex = receivingNode.parent._children.indexOf(draggedElement.__node);
-                if (draggedIndex !== -1 && draggedIndex < insertionIndex) {
-                        --insertionIndex;
+                // If the dragged file has the same parent as the drop target, shift the insertion index
+                if (futureSiblings.includes(draggedElement.__node)) {
+                        const draggedIndex = futureSiblings.indexOf(draggedElement.__node);
+                        if (draggedIndex < droppedIndex) {
+                                --droppedIndex;
+                        }
                 }
 
-                receivingNode.parent.addChild(draggedElement.__node, insertionIndex);
-
+                await confirmDrop(receivingNode.parent, draggedElement.__node, droppedIndex);
                 finishDrag();
         });
 
-        rootNode.addChild(new FileNode("File A", FileNode.Icon.source));
-        rootNode.addChild(new FileNode("File B", FileNode.Icon.source));
+        rootNode.addChild(new FileNode(editor, "File A", FileNode.Icon.source));
+        rootNode.addChild(new FileNode(editor, "File B", FileNode.Icon.source));
 
-        const folder1 = new FolderNode("Folder 1");
+        const folder1 = new FolderNode(editor, "Folder 1");
         rootNode.addChild(folder1);
 
-        folder1.addChild(new FileNode("File C", FileNode.Icon.source));
+        folder1.addChild(new FileNode(editor, "File B", FileNode.Icon.source));
 
-        const folder2 = new FolderNode("Folder 2");
+        const folder2 = new FolderNode(editor, "Folder 2");
         folder1.addChild(folder2);
 
-        folder2.addChild(new FileNode("File D", FileNode.Icon.source));
+        folder2.addChild(new FileNode(editor, "File D", FileNode.Icon.source));
 
-        folder1.addChild(new FileNode("File E", FileNode.Icon.source));
+        folder1.addChild(new FileNode(editor, "File E", FileNode.Icon.source));
 
-        rootNode.addChild(new FileNode("File F", FileNode.Icon.source));
+        rootNode.addChild(new FileNode(editor, "File F", FileNode.Icon.source));
 }

@@ -8,6 +8,7 @@
         --background-color-2: #375464;
         /* A color between background color 1 and background color 2 */
         --interaction-color: #263A45;
+        --invalid-destructive-color: #d16969;
         --foreground-color-1: rgba(255, 255, 255, var(--opacity-1));
         --foreground-color-2: rgba(255, 255, 255, var(--opacity-2));
         --foreground-color-3: rgba(255, 255, 255, var(--opacity-3));
@@ -46,6 +47,16 @@
 .editor *::-webkit-scrollbar-thumb:hover {
         /* The background color of the thumb 50% lighter */
         background: #bbbec0;
+}
+
+.editor code, .editor pre {
+        font-family: monospace;
+        background-color: var(--background-color-2);
+        padding-left: 4px;
+        padding-right: 4px;
+        padding-top: 2px;
+        padding-bottom: 2px;
+        border-radius: 2px;
 }
 
 .horizontal-panel {
@@ -162,6 +173,17 @@
         flex: 1;
 }
 
+.file .rename {
+        width: 100%;
+        height: 100%;
+        border: none;
+        outline: none;
+        color: inherit;
+        font-family: inherit;
+        background-color: transparent;
+        border-bottom: 2px solid var(--foreground-color-3);
+}
+
 .file .delete {
         opacity: 0;
 }
@@ -170,8 +192,24 @@
         opacity: var(--opacity-3);
 }
 
-.file .delete:hover {
+.file:hover:not(.dragging) .delete:hover {
         opacity: var(--opacity-1);
+}
+
+.file-error {
+        position: absolute;
+        left: 0;
+        right: 0;
+        margin-left: var(--file-base-padding);
+        margin-right: var(--file-base-padding);
+        background: var(--background-color-1);
+        border: 1px solid var(--invalid-destructive-color);
+        overflow-wrap: break-word;
+        border-radius: 4px;
+        padding: 6px 8px;
+        font-size: 12px;
+        color: var(--invalid-destructive-color);
+        z-index: 10;
 }
 
 .drop-line {
@@ -186,4 +224,55 @@
 
 .drop-line.active {
         opacity: 1;
+}
+
+.modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background-color: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+}
+
+.modal {
+        background-color: var(--background-color-1);
+        color: var(--text-color);
+        border-radius: 6px;
+        padding: 24px;
+        min-width: 300px;
+        max-width: 90vw;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+}
+
+.modal-header {
+        font-size: 1.2em;
+        font-weight: bold;
+}
+
+.modal-body {
+        font-size: 1em;
+        line-height: 1.4;
+}
+
+.modal-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+}
+
+.modal-footer button {
+        padding-top: 6px;
+        padding-bottom: 6px;
+        padding-left: 12px;
+        padding-right: 12px;
+        border-radius: 4px;
+        border: none;
+        cursor: pointer;
 }
