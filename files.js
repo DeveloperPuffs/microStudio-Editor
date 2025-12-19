@@ -143,17 +143,24 @@ class ContainerNode extends BaseNode {
 }
 
 class RootNode extends ContainerNode {
-        constructor(fileList) {
+        constructor(editor, element) {
                 super();
 
-                this.fileList = fileList;
+                this.editor = editor;
+                this.element = element;
+
+                Object.defineProperty(this.element, "__node", {
+                        value: this,
+                        writable: false,
+                        configurable: false
+                });
         }
 
         placeChild(child, sibling) {
                 if (sibling === this) {
                         // Add all of the elements at the start of the root
                         const elements = child.getSubtreeElements();
-                        this.fileList.prepend(...elements);
+                        this.element.prepend(...elements);
                         return;
                 }
 
@@ -271,8 +278,7 @@ function ElementNode(NodeClass) {
                                 }
 
                                 if (currentParent instanceof RootNode) {
-                                        this.element.style.paddingLeft
-                                                = `calc(var(--file-base-padding) + var(--file-depth-padding) * ${nestedDepth})`;
+                                        this.element.style.paddingLeft = `${16 + nestedDepth * 24}px`;
                                         break;
                                 }
 
@@ -473,203 +479,244 @@ class FolderNode extends ElementNode(ContainerNode) {
         }
 }
 
-export function setupEditorFileTree(editor, fileTree) {
-        const fileList = fileTree.querySelector("#file-list");
-        const dropLine = fileTree.querySelector("#drop-line");
-        const rootNode = new RootNode(fileList);
-
-        const DropPosition = Object.freeze({
+class FileDrag {
+        static DropPosition = Object.freeze({
                 ABOVE: Symbol("ABOVE"),
                 BELOW: Symbol("BELOW")
         });
 
-        let draggedElement = null;
-        let receivingNode = null;
-        let dropPosition = null;
-
-        function finishDrag() {
-                dropLine.classList.remove("active");
-
-                if (draggedElement !== null) {
-                        draggedElement.classList.remove("dragging");
-                }
-
-                draggedElement = null;
-                receivingNode = null;
-                dropPosition = null;
-        }
-
-        fileList.addEventListener("dragstart", event => {
-                const element = event.target.closest(".file:not(.hidden):not(.dragging)");
-                if (element === null || !element.__node.canStartDrag()) {
-                        return;
-                }
-
-                draggedElement = element;
-                draggedElement.classList.add("dragging");
-
-                event.dataTransfer.effectAllowed = "move";
-                event.dataTransfer.setData("text/plain", "ignored");
+        static NameClashDropOption = Object.freeze({
+                CANCEL: Symbol("CANCEL"),
+                RENAME: Symbol("RENAME"),
+                REPLACE: Symbol("REPLACE")
         });
 
-        fileList.addEventListener("dragover", event => {
-                if (draggedElement === null) {
-                        return;
-                }
+        constructor(editor, element, onFinish = null) {
+                this.editor = editor;
+                this.fileList = editor.querySelector("#file-list");
+                this.dropLine = editor.querySelector("#file-drop-line");
+                this.draggedElement = element;
+                this.receivingElement = null;
+                this.dropPosition = null;
+                this.onFinish = onFinish;
+        }
 
-                const containerRectangle = dropLine.parentElement.getBoundingClientRect();
+        get draggedNode() {
+                return this.draggedElement.__node;
+        }
 
-                const targetElement = event.target.closest(".file:not(.hidden)");
-                if (targetElement === null) {
-                        // Check if the drag is below the very last element
-                        let lastElement = fileList.lastElementChild;
-                        if (lastElement === null) {
-                                event.preventDefault();
-                                event.dataTransfer.dropEffect = "move";
+        get receivingNode() {
+                return this.receivingElement?.__node ?? null;
+        }
 
-                                // The file list is empty, allow a drop at the root
-                                dropLine.classList.add("active");
-                                dropLine.style.top = "0";
-                                dropLine.style.width = `${containerRectangle.width}px`;
-                                receivingNode = rootNode;
-                                return;
-                        }
+        dragStart(event) {
+                this.draggedElement.classList.add("dragging");
+                event.dataTransfer.effectAllowed = "move";
+                event.dataTransfer.setData("text/plain", "ignored");
+        }
 
+        dragEnd(_) {
+                this.dropLine.classList.remove("active");
+                this.draggedElement.classList.remove("dragging");
+                this.onFinish?.();
+        }
+
+        dragOver(event) {
+                const containerRectangle = this.fileList.getBoundingClientRect();
+
+                const receivingElement = event.target.closest(".file:not(.hidden)");
+                if (receivingElement === null) {
+                        // Check if the drag is below the very last element. It is guaranteed for
+                        // there to be at least one visible element because this file is being dragged
                         // Find the last visible element, since the root is always expanded,
                         // it is guaranteed that there will be an element that is visible now
+                        let lastElement = this.fileList.lastElementChild;
                         while (lastElement.__node.hidden) {
                                 lastElement = lastElement.previousElementSibling;
                         }
 
-                        const rectangle = lastElement.getBoundingClientRect();
-                        if (event.clientY > rectangle.bottom) {
+                        if (lastElement === this.draggedElement) {
+                                // The dragged element is the last visible element and it is already in the root
+                                if (lastElement.__node.parent === this.fileList.__node) {
+                                        this.dropLine.classList.remove("active");
+                                        return;
+                                }
+                        }
+
+                        if (this.draggedNode instanceof FolderNode && this.draggedNode.parent === this.fileList.__node) {
+                                // The dragged folder is already at the root, but the last visible element is a descendant of it
+                                if (lastElement.__node.isDescendantOf(this.draggedNode)) {
+                                        this.dropLine.classList.remove("active");
+                                        return;
+                                }
+                        }
+
+                        const lastRectangle = lastElement.getBoundingClientRect();
+                        if (event.clientY > lastRectangle.bottom) {
                                 event.preventDefault();
                                 event.dataTransfer.dropEffect = "move";
 
                                 // Dragging below the last element, allow a drop at the root
-                                dropLine.classList.add("active");
-                                dropLine.style.top = `${rectangle.bottom - containerRectangle.top}px`;
-                                dropLine.style.width = `${rectangle.width}px`;
-                                receivingNode = rootNode;
+                                this.dropLine.classList.add("active");
+                                this.dropLine.style.top = `${lastRectangle.bottom - containerRectangle.top}px`;
+                                this.dropLine.style.width = `${lastRectangle.width}px`;
+                                this.receivingElement = this.fileList;
                                 return;
                         }
 
-                        dropLine.classList.remove("active");
+                        this.dropLine.classList.remove("active");
                         return;
                 }
 
-                if (targetElement.__node === draggedElement.__node) {
-                        dropLine.classList.remove("active");
+                // You can't drop a file above or below itself
+                if (receivingElement === this.draggedElement) {
+                        this.dropLine.classList.remove("active");
                         return;
                 }
 
-                if (draggedElement.__node instanceof FolderNode) {
+                if (this.draggedNode instanceof FolderNode) {
                         // Make sure you don't drop a folder into itself
-                        if (targetElement.__node.isDescendantOf(draggedElement.__node)) {
-                                dropLine.classList.remove("active");
+                        if (receivingElement.__node.isDescendantOf(this.draggedNode)) {
+                                this.dropLine.classList.remove("active");
                                 return;
                         }
                 }
 
-                const targetRectangle = targetElement.getBoundingClientRect();
-                dropPosition = event.clientY < targetRectangle.top + targetRectangle.height / 2
-                        ? DropPosition.ABOVE
-                        : DropPosition.BELOW;
+                const receivingRectangle = receivingElement.getBoundingClientRect();
+                if (event.clientY < receivingRectangle.top + receivingRectangle.height / 2) {
+                        this.dropPosition = FileDrag.DropPosition.ABOVE;
 
-                if (dropPosition === DropPosition.ABOVE) {
-                        let aboveElement = targetElement.previousElementSibling;
-                        while (aboveElement !== null && aboveElement !== draggedElement && aboveElement.__node.hidden) {
+                        let aboveElement = receivingElement.previousElementSibling;
+                        while (aboveElement !== null && aboveElement !== this.draggedElement && aboveElement.__node.hidden) {
                                 aboveElement = aboveElement.previousElementSibling;
                         }
 
-                        if (aboveElement === draggedElement) {
-                                dropLine.classList.remove("active");
+                        if (aboveElement === this.draggedElement) {
+                                this.dropLine.classList.remove("active");
                                 return;
                         }
-                }
 
-                if (dropPosition === DropPosition.BELOW) {
-                        let belowElement = targetElement.nextElementSibling;
-                        while (belowElement !== null && belowElement !== draggedElement && belowElement.__node.hidden) {
+                        if (this.draggedNode instanceof FolderNode) {
+                                // This means an open folder is dragging below itself (nothing happens)
+                                if (aboveElement.__node.parent === this.draggedNode) {
+                                        this.dropLine.classList.remove("active");
+                                        return;
+                                }
+                        }
+                } else {
+                        this.dropPosition = FileDrag.DropPosition.BELOW;
+
+                        let belowElement = receivingElement.nextElementSibling;
+                        while (belowElement !== null && belowElement !== this.draggedElement && belowElement.__node.hidden) {
                                 belowElement = belowElement.nextElementSibling;
                         }
 
-                        if (belowElement === draggedElement) {
-                                dropLine.classList.remove("active");
+                        if (belowElement === this.draggedElement) {
+                                this.dropLine.classList.remove("active");
                                 return;
                         }
                 }
 
                 event.preventDefault();
                 event.dataTransfer.dropEffect = "move";
+                this.receivingElement = receivingElement;
 
-                receivingNode = targetElement.__node;
+                this.dropLine.style.top = this.dropPosition === FileDrag.DropPosition.ABOVE
+                        ? `${receivingRectangle.top - containerRectangle.top}px`
+                        : `${receivingRectangle.bottom - containerRectangle.top}px`;
 
-                dropLine.style.top = dropPosition === DropPosition.ABOVE
-                        ? `${targetRectangle.top - containerRectangle.top}px`
-                        : `${targetRectangle.bottom - containerRectangle.top}px`;
+                // Make sure the width of the drop line matches even when there is a vertical scrollbar
+                this.dropLine.style.width = `${receivingRectangle.width}px`;
+                this.dropLine.classList.add("active");
+        }
 
-                // Make sure the width matches even when there is a scrollbar
-                dropLine.style.width = `${targetRectangle.width}px`;
-                dropLine.classList.add("active");
-        });
-
-        fileList.addEventListener("dragleave", event => {
-                if (event.relatedTarget === null || !fileList.contains(event.relatedTarget)) {
-                        dropLine.classList.remove("active");
+        dragLeave(event) {
+                if (event.relatedTarget === null || !this.fileList.contains(event.relatedTarget)) {
+                        this.dropLine.classList.remove("active");
                 }
-        });
+        }
 
-        fileList.addEventListener("dragend", () => {
-                finishDrag();
-        });
+        drop(event) {
+                event.preventDefault();
 
-        const NameClashDropOption = Object.freeze({
-                CANCEL: Symbol("CANCEL"),
-                RENAME: Symbol("RENAME"),
-                REPLACE: Symbol("REPLACE")
-        });
+                if (this.receivingElement === this.fileList) {
+                        // If the receiving node is the root, it means that I should add it to the end of it
+                        // if the dragged node is alread inside the root, shift the insertion index
+                        let droppedIndex = this.receivingNode.getChildCount();
+                        const futureSiblings = this.receivingNode.getChildren();
+                        if (futureSiblings.includes(this.draggedNode)) {
+                                --droppedIndex;
+                        }
 
-        async function confirmDrop(receivingNode, droppedNode, droppedIndex) {
+                        this.confirmDrop(this.receivingNode, droppedIndex);
+                        return;
+                }
+
+                // Dropping right below an open folder will make the node enter the dropped folder
+                if (this.receivingNode instanceof FolderNode) {
+                        if (this.receivingNode.expanded && this.dropPosition === FileDrag.DropPosition.BELOW) {
+                                this.confirmDrop(this.receivingNode, 0);
+                                return;
+                        }
+                }
+
+                const futureSiblings = this.receivingNode.parent.getChildren();
+                let droppedIndex = futureSiblings.indexOf(this.receivingNode);
+                if (this.dropPosition === FileDrag.DropPosition.BELOW) {
+                        ++droppedIndex;
+                }
+
+                // If the dragged file has the same parent as the drop target, shift the insertion index
+                if (futureSiblings.includes(this.draggedNode)) {
+                        const draggedIndex = futureSiblings.indexOf(this.draggedNode);
+                        if (draggedIndex < droppedIndex) {
+                                --droppedIndex;
+                        }
+                }
+
+                this.confirmDrop(this.receivingNode.parent, droppedIndex);
+        }
+
+        async confirmDrop(parentNode, droppedIndex) {
                 let replacedNode = null;
                 let shouldRename = false;
 
-                const futureSiblings = receivingNode.getChildren();
-                if (!futureSiblings.includes(droppedNode)) {
+                const futureSiblings = parentNode.getChildren();
+                if (!futureSiblings.includes(this.draggedNode)) {
                         // If the file is dropping in a different folder,
                         // make sure there is no name clash between files
                         for (const futureSibling of futureSiblings) {
-                                if (futureSibling.name === droppedNode.name) {
-                                        const nameClashModal = new Modal(editor, {
+                                if (futureSibling.name === this.draggedNode.name) {
+                                        const nameClashModal = new Modal(this.editor, {
                                                 title: `Cannot Move Item`,
-                                                message: `An item in this folder already has the name "${droppedNode.name}".`,
+                                                message: `An item in this folder already has the name "${this.draggedNode.name}".`,
                                                 buttons: [
                                                         {
                                                                 label: "Cancel",
-                                                                value: NameClashDropOption.CANCEL
+                                                                value: FileDrag.NameClashDropOption.CANCEL
                                                         },
                                                         {
                                                                 label: "Rename",
-                                                                value: NameClashDropOption.RENAME
+                                                                value: FileDrag.NameClashDropOption.RENAME
                                                         },
                                                         {
                                                                 label: "Replace",
                                                                 color: "var(--invalid-destructive-color)",
-                                                                value: NameClashDropOption.REPLACE
+                                                                value: FileDrag.NameClashDropOption.REPLACE
                                                         }
                                                 ]
                                         });
 
                                         const option = await nameClashModal.prompt();
-                                        if (option === NameClashDropOption.CANCEL) {
+                                        if (option === FileDrag.NameClashDropOption.CANCEL) {
                                                 return;
                                         }
 
-                                        if (option === NameClashDropOption.RENAME) {
+                                        if (option === FileDrag.NameClashDropOption.RENAME) {
                                                 shouldRename = true;
                                         }
 
-                                        if (option === NameClashDropOption.REPLACE) {
+                                        if (option === FileDrag.NameClashDropOption.REPLACE) {
                                                 replacedNode = futureSibling;
                                         }
 
@@ -678,7 +725,7 @@ export function setupEditorFileTree(editor, fileTree) {
                         }
                 }
 
-                receivingNode.addChild(droppedNode, droppedIndex);
+                parentNode.addChild(this.draggedNode, droppedIndex);
 
                 if (replacedNode !== null) {
                         replacedNode.requestDeletion(false);
@@ -692,7 +739,7 @@ export function setupEditorFileTree(editor, fileTree) {
                                 temporaryNameClash = false;
 
                                 // I can use the previous siblings array because it didn't (and still dosen't) contain the newly dropped node
-                                const temporaryName = `${droppedNode.name} (${temporaryNameNumber})`;
+                                const temporaryName = `${this.draggedNode.name} (${temporaryNameNumber})`;
                                 for (const currentSibling of futureSiblings) {
                                         if (currentSibling.name === temporaryName) {
                                                 temporaryNameClash = true;
@@ -701,73 +748,125 @@ export function setupEditorFileTree(editor, fileTree) {
                                 }
                         }
 
-                        droppedNode.name = `${droppedNode.name} (${temporaryNameNumber})`;
-                        droppedNode.beginRenaming();
+                        this.draggedNode.name = `${this.draggedNode.name} (${temporaryNameNumber})`;
+                        this.draggedNode.beginRenaming();
                 }
         }
+};
 
-        fileList.addEventListener("drop", async event => {
-                event.preventDefault();
+export const FileType = Object.freeze({
+        SOURCE: Symbol("SOURCE"),
+        IMAGE: Symbol("IMAGE"),
+        MAP: Symbol("MAP"),
+        SOUND: Symbol("SOUND"),
+        MUSIC: Symbol("MUSIC"),
+        DOC: Symbol("DOC"),
+        FOLDER: Symbol("FOLDER")
+});
 
-                if (draggedElement === null || receivingNode === null) {
+export function setupEditorFileTree(editor) {
+        const fileList = editor.querySelector("#file-list");
+        const rootNode = new RootNode(editor, fileList);
+
+        let currentDrag = null;
+
+        fileList.addEventListener("dragstart", event => {
+                if (currentDrag !== null) {
                         return;
                 }
 
-                if (receivingNode === rootNode) {
-                        // If the receiving node is the root, it means that I should add it to the end of the root
-                        // if the dragged node is alread inside the root, shift the insertion index
-                        let droppedIndex = receivingNode.getChildCount();
-                        const futureSiblings = receivingNode.getChildren();
-                        if (futureSiblings.includes(draggedElement.__node)) {
-                                --droppedIndex;
-                        }
-
-                        await confirmDrop(receivingNode, draggedElement.__node, droppedIndex);
-
-                        finishDrag();
+                const draggedElement = event.target.closest(".file:not(.hidden):not(.dragging)");
+                if (draggedElement === null) {
                         return;
                 }
 
-                // Dropping right below an open folder will make the node enter the dropped folder
-                if (receivingNode instanceof FolderNode && receivingNode.expanded && dropPosition === DropPosition.BELOW) {
-                        await confirmDrop(receivingNode, draggedElement.__node, 0);
-
-                        finishDrag();
+                const draggedNode = draggedElement.__node;
+                if (!draggedNode.canStartDrag()) {
                         return;
                 }
 
-                const futureSiblings = receivingNode.parent.getChildren();
-                let droppedIndex = futureSiblings.indexOf(receivingNode);
-                if (dropPosition === DropPosition.BELOW) {
-                        ++droppedIndex;
-                }
+                currentDrag = new FileDrag(editor, draggedElement, () => {
+                        currentDrag = null;
+                });
 
-                // If the dragged file has the same parent as the drop target, shift the insertion index
-                if (futureSiblings.includes(draggedElement.__node)) {
-                        const draggedIndex = futureSiblings.indexOf(draggedElement.__node);
-                        if (draggedIndex < droppedIndex) {
-                                --droppedIndex;
-                        }
-                }
-
-                await confirmDrop(receivingNode.parent, draggedElement.__node, droppedIndex);
-                finishDrag();
+                currentDrag.dragStart(event);
         });
 
-        rootNode.addChild(new FileNode(editor, "File A", FileNode.Icon.source));
-        rootNode.addChild(new FileNode(editor, "File B", FileNode.Icon.source));
+        fileList.addEventListener("dragend", event => {
+                currentDrag?.dragEnd(event);
+        });
 
-        const folder1 = new FolderNode(editor, "Folder 1");
-        rootNode.addChild(folder1);
+        fileList.addEventListener("dragover", event => {
+                currentDrag?.dragOver(event);
+        });
 
-        folder1.addChild(new FileNode(editor, "File B", FileNode.Icon.source));
+        fileList.addEventListener("dragleave", event => {
+                currentDrag?.dragLeave(event);
+        });
 
-        const folder2 = new FolderNode(editor, "Folder 2");
-        folder1.addChild(folder2);
+        fileList.addEventListener("drop", event => {
+                currentDrag?.drop(event);
+        });
 
-        folder2.addChild(new FileNode(editor, "File D", FileNode.Icon.source));
+        const fileTypeToFileIcon = {
+                [FileType.SOURCE]: FileNode.Icon.source,
+                [FileType.IMAGE]: FileNode.Icon.image,
+                [FileType.MAP]: FileNode.Icon.map,
+                [FileType.SOUND]: FileNode.Icon.sound,
+                [FileType.MUSIC]: FileNode.Icon.music,
+                [FileType.DOC]: FileNode.Icon.doc
+        };
 
-        folder1.addChild(new FileNode(editor, "File E", FileNode.Icon.source));
+        const nodeToHandle = new WeakMap();
+        const handleToNode = new WeakMap();
 
-        rootNode.addChild(new FileNode(editor, "File F", FileNode.Icon.source));
+        function createHandle(node) {
+                const handle = Object.freeze({
+                        get name() {
+                                return node.name;
+                        },
+
+                        set name(name) {
+                                node.name = name;
+                        },
+
+                        isFolder() {
+                                return node instanceof FolderNode;
+                        }
+                });
+
+                nodeToHandle.set(node, handle);
+                handleToNode.set(handle, node);
+
+                return handle;
+        }
+
+        function addFile(parent, type, name, clickCallback = null) {
+                const parentNode = handleToNode.get(parent) ?? rootNode;
+
+                if (type === FileType.FOLDER) {
+                        const node = new FolderNode(editor, name);
+                        parentNode.addChild(node);
+                        return createHandle(node);
+                }
+
+                const icon = fileTypeToFileIcon[type];
+                const node = new FileNode(editor, name, icon, clickCallback);
+                parentNode.addChild(node);
+                return createHandle(node);
+        }
+
+        function removeFile(handle, confirmation) {
+                const node = handleToNode.get(handle);
+                if (node === undefined) {
+                        return;
+                }
+
+                node.requestDeletion(confirmation);
+        }
+
+        return Object.freeze({
+                addFile,
+                removeFile
+        });
 }

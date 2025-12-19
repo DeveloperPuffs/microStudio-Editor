@@ -1,5 +1,6 @@
 import { setupEditorLayout } from "./layout.js";
-import { setupEditorFileTree } from "./files.js";
+import { setupEditorFileTree, FileType } from "./files.js";
+import { setupEditorTabBar } from "./tabs.js";
 
 export async function createEditor(container) {
         if (document.querySelector("script[src*=\"kit.fontawesome.com\"]") === null) {
@@ -29,8 +30,22 @@ export async function createEditor(container) {
         container.innerHTML = await htmlResponse.text();
 
         const editor = container.querySelector("#editor");
+
         setupEditorLayout(editor);
 
-        const fileTree = container.querySelector("#file-tree");
-        setupEditorFileTree(editor, fileTree);
+        const fileTree = setupEditorFileTree(editor);
+
+        fileTree.addFile(null, FileType.SOURCE, "File A");
+        fileTree.addFile(null, FileType.SOURCE, "File B");
+
+        const folder1 = fileTree.addFile(null, FileType.FOLDER, "Folder 1");
+        fileTree.addFile(folder1, FileType.SOURCE, "File C");
+
+        const folder2 = fileTree.addFile(folder1, FileType.FOLDER, "Folder 2");
+        fileTree.addFile(folder2, FileType.SOURCE, "File D");
+
+        fileTree.addFile(folder1, FileType.SOURCE, "File E");
+        fileTree.addFile(null, FileType.SOURCE, "File F");
+
+        setupEditorTabBar(editor);
 };
