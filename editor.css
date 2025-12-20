@@ -8,7 +8,8 @@
         --background-color-2: #375464;
         /* A color between background color 1 and background color 2 */
         --interaction-color: #263A45;
-        --invalid-destructive-color: #d16969;
+        --dark-invalid-color: #ce2317;
+        --light-invalid-color: #db6464;
         --foreground-color-1: rgba(255, 255, 255, var(--opacity-1));
         --foreground-color-2: rgba(255, 255, 255, var(--opacity-2));
         --foreground-color-3: rgba(255, 255, 255, var(--opacity-3));
@@ -200,12 +201,12 @@
         margin-left: 8px;
         margin-right: 8px;
         background: var(--background-color-1);
-        border: 1px solid var(--invalid-destructive-color);
+        border: 1px solid var(--light-invalid-color);
         overflow-wrap: break-word;
         border-radius: 4px;
         padding: 6px 8px;
         font-size: 12px;
-        color: var(--invalid-destructive-color);
+        color: var(--light-invalid-color);
         z-index: 10;
 }
 
@@ -355,7 +356,8 @@
         padding-bottom: 6px;
         padding-left: 12px;
         padding-right: 12px;
-        border-radius: 4px;
-        border: none;
+        border-radius: 2px;
         cursor: pointer;
+        color: inherit;
+        border: none;
 }

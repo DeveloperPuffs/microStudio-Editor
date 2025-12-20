@@ -39,9 +39,7 @@ export class Modal {
                         buttons.forEach(button => {
                                 const buttonElement = document.createElement("button");
                                 buttonElement.textContent = button.label;
-                                if (button.color !== undefined) {
-                                        buttonElement.style.backgroundColor = button.color;
-                                }
+                                buttonElement.style.backgroundColor = button.backgroundColor ?? "var(--background-color-2)";
 
                                 buttonElement.addEventListener("click", () => {
                                         this.close(button.value ?? null);

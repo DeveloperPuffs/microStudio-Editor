@@ -409,7 +409,7 @@ function ElementNode(NodeClass) {
                                         },
                                         {
                                                 label: "Delete",
-                                                color: "var(--invalid-destructive-color)",
+                                                backgroundColor: "var(--dark-invalid-color)",
                                                 value: true
                                         },
                                 ]
@@ -710,7 +710,7 @@ class FileDrag {
                                                         },
                                                         {
                                                                 label: "Replace",
-                                                                color: "var(--invalid-destructive-color)",
+                                                                backgroundColor: "var(--dark-invalid-color)",
                                                                 value: FileDrag.NameClashDropOption.REPLACE
                                                         }
                                                 ]
