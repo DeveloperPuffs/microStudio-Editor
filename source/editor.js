@@ -29,17 +29,17 @@ export function createEditor(container) {
 
         const fileTree = setupEditorFileTree(editor);
 
-        fileTree.addFile(null, FileType.SOURCE, "File A");
-        fileTree.addFile(null, FileType.SOURCE, "File B");
+        fileTree.addFile(null, FileType.SOURCE, "File A.js");
+        fileTree.addFile(null, FileType.SOURCE, "File B.js");
 
         const folder1 = fileTree.addFile(null, FileType.FOLDER, "Folder 1");
-        fileTree.addFile(folder1, FileType.SOURCE, "File C");
+        fileTree.addFile(folder1, FileType.SOURCE, "File C.js");
 
         const folder2 = fileTree.addFile(folder1, FileType.FOLDER, "Folder 2");
-        fileTree.addFile(folder2, FileType.SOURCE, "File D");
+        fileTree.addFile(folder2, FileType.SOURCE, "File D.js");
 
-        fileTree.addFile(folder1, FileType.SOURCE, "File E");
-        fileTree.addFile(null, FileType.SOURCE, "File F");
+        fileTree.addFile(folder1, FileType.SOURCE, "File E.js");
+        fileTree.addFile(null, FileType.SOURCE, "File F.js");
 
         setupEditorTabBar(editor);
 };

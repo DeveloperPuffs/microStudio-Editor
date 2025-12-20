@@ -14,7 +14,7 @@
         --foreground-color-2: rgba(255, 255, 255, var(--opacity-2));
         --foreground-color-3: rgba(255, 255, 255, var(--opacity-3));
         --handle-size: 10px;
-        --bar-size: 50px;
+        --bar-size: 40px;
 
         font-family: "Inter", monospace;
         background-color: var(--background-color-1);
@@ -156,6 +156,7 @@
 }
 
 .file {
+        font-size: small;
         width: 100%;
         cursor: pointer;
         display: flex;
@@ -192,7 +193,13 @@
         flex: 1;
 }
 
-.file .rename {
+.file .rename-wrapper {
+        width: 100%;
+        height: 100%;
+        display: flex;
+}
+
+.file .rename-wrapper input.rename {
         width: 100%;
         height: 100%;
         border: none;
@@ -201,6 +208,13 @@
         font-family: inherit;
         background-color: transparent;
         border-bottom: 2px solid var(--foreground-color-3);
+}
+
+.file .rename-wrapper .extension {
+        height: 100%;
+        pointer-events: none;
+        color: var(--foreground-color-2);
+        font-weight: normal;
 }
 
 .file .delete {
@@ -219,14 +233,12 @@
         position: absolute;
         left: 0;
         right: 0;
-        margin-left: 8px;
-        margin-right: 8px;
         background: var(--background-color-1);
         border: 1px solid var(--light-invalid-color);
         overflow-wrap: break-word;
         border-radius: 4px;
-        padding: 6px 8px;
-        font-size: 12px;
+        padding: 8px;
+        font-size: x-small;
         color: var(--light-invalid-color);
         z-index: 10;
 }
@@ -265,17 +277,18 @@
 }
 
 .tab {
-        min-width: 80px;
-        max-width: 240px;
+        font-size: small;
+        min-width: 120px;
+        max-width: 360px;
         height: 100%;
         cursor: pointer;
         display: flex;
         align-items: center;
         gap: 8px;
-        padding-left: 12px;
-        padding-right: 12px;
-        padding-top: 8px;
-        padding-bottom: 8px;
+        padding-left: 8px;
+        padding-right: 8px;
+        padding-top: 4px;
+        padding-bottom: 4px;
         background-color: var(--background-color-1);
         border-right: 1px solid var(--background-color-2);
 }
@@ -356,13 +369,8 @@
 }
 
 .modal-header {
-        font-size: 1.2em;
+        font-size: large;
         font-weight: bold;
-}
-
-.modal-body {
-        font-size: 1em;
-        line-height: 1.4;
 }
 
 .modal-footer {

@@ -173,13 +173,14 @@ class RootNode extends ContainerNode {
 // ContainerNode is needed as a separate class because it is inherited by RootNode, which isn't an ElementNode
 function ElementNode(NodeClass) {
         return class extends NodeClass {
-                constructor(editor, name, icon) {
+                constructor(editor, name, icon, containsExtension) {
                         super();
 
                         this.editor = editor;
                         this._name = null;
                         this._icon = null;
                         this._renaming = false;
+                        this.containsExtension = containsExtension;
 
                         this.element = document.createElement("li");
                         this.element.setAttribute("draggable", true);
@@ -259,6 +260,22 @@ function ElementNode(NodeClass) {
                         return [this.element];
                 }
 
+                getNameInformation() {
+                        const nameInformation = {
+                                baseName: this._name,
+                                extension: ""
+                        };
+
+                        // This needs to be checked with a property because folders can end with an extension
+                        if (this.containsExtension) {
+                                const index = this._name.lastIndexOf(".");
+                                nameInformation.baseName = this._name.slice(0, index);
+                                nameInformation.extension = this._name.slice(index);
+                        }
+
+                        return nameInformation;
+                }
+
                 canStartDrag() {
                         return !this._renaming;
                 }
@@ -294,13 +311,26 @@ function ElementNode(NodeClass) {
 
                         this._renaming = true;
 
+                        const { baseName, extension } = this.getNameInformation();
+
+                        const renameWrapper = document.createElement("div");
+                        renameWrapper.classList.add("rename-wrapper");
+
                         const input = document.createElement("input");
                         input.type = "text";
                         input.maxLength = 255;
-                        input.value = this._name;
+                        input.value = baseName;
                         input.classList.add("rename");
+                        renameWrapper.appendChild(input);
 
-                        this.labelElement.replaceWith(input);
+                        if (extension !== "") {
+                                const extensionLabel = document.createElement("span");
+                                extensionLabel.textContent = extension;
+                                extensionLabel.classList.add("extension");
+                                renameWrapper.appendChild(extensionLabel);
+                        }
+
+                        this.labelElement.replaceWith(renameWrapper);
 
                         input.focus();
                         input.select();
@@ -325,7 +355,7 @@ function ElementNode(NodeClass) {
                         const commit = () => {
                                 const trimmedName = input.value.trim();
                                 if (trimmedName !== "") {
-                                        this.name = trimmedName;
+                                        this.name = trimmedName + extension;
                                 }
 
                                 cleanup();
@@ -339,7 +369,7 @@ function ElementNode(NodeClass) {
                                 finished = true;
                                 hideError();
 
-                                input.replaceWith(this.labelElement);
+                                renameWrapper.replaceWith(this.labelElement);
                                 this._renaming = false;
                         };
 
@@ -361,7 +391,7 @@ function ElementNode(NodeClass) {
                                 }
 
                                 for (const sibling of this.getSiblings()) {
-                                        if (sibling.name === trimmedName) {
+                                        if (sibling.name === trimmedName + extension) {
                                                 showError(`Cannot name file "${trimmedName}": File with same name already exists in folder`);
                                                 return;
                                         }
@@ -433,7 +463,7 @@ class FileNode extends ElementNode(BaseNode) {
         });
 
         constructor(editor, name, icon, clickCallback = null) {
-                super(editor, name, icon);
+                super(editor, name, icon, true);
                 this.clickCallback = clickCallback;
         }
 
@@ -449,7 +479,7 @@ class FolderNode extends ElementNode(ContainerNode) {
         });
 
         constructor(editor, name) {
-                super(editor, name, FolderNode.Icon.closed);
+                super(editor, name, FolderNode.Icon.closed, false);
         }
 
         onClick() {
@@ -698,7 +728,7 @@ class FileDrag {
                                 if (futureSibling.name === this.draggedNode.name) {
                                         const nameClashModal = new Modal(this.editor, {
                                                 title: `Cannot Move Item`,
-                                                message: `An item in this folder already has the name "${this.draggedNode.name}".`,
+                                                message: `An item in this folder already has the name <code>${this.draggedNode.name}</code>.`,
                                                 buttons: [
                                                         {
                                                                 label: "Cancel",
@@ -741,6 +771,9 @@ class FileDrag {
                 }
 
                 if (shouldRename) {
+                        const { baseName, extension } = this.draggedNode.getNameInformation();
+
+                        let temporaryName = "";
                         let temporaryNameNumber = 0;
                         let temporaryNameClash = true;
                         while (temporaryNameClash) {
@@ -748,7 +781,7 @@ class FileDrag {
                                 temporaryNameClash = false;
 
                                 // I can use the previous siblings array because it didn't (and still dosen't) contain the newly dropped node
-                                const temporaryName = `${this.draggedNode.name} (${temporaryNameNumber})`;
+                                temporaryName = `${baseName} (${temporaryNameNumber})${extension}`;
                                 for (const currentSibling of futureSiblings) {
                                         if (currentSibling.name === temporaryName) {
                                                 temporaryNameClash = true;
@@ -757,7 +790,7 @@ class FileDrag {
                                 }
                         }
 
-                        this.draggedNode.name = `${this.draggedNode.name} (${temporaryNameNumber})`;
+                        this.draggedNode.name = temporaryName;
                         this.draggedNode.beginRenaming();
                 }
         }
