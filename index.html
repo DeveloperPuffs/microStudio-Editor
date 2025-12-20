@@ -23,13 +23,13 @@
         </head>
         <body>
                 <main>
-                        <span>Loading editor preview...</span>
+                        <span>Loading editor...</span>
                 </main>
                 <script>
                         const documentMain = document.querySelector("main");
                         documentMain.replaceChildren();
 
-                        import(`/editor.js?v=${Date.now()}`)
+                        import(`/source/editor.js?v=${Date.now()}`)
                                 .then(Editor => {
                                         Editor.createEditor(documentMain);
                                 });

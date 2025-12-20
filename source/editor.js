@@ -1,8 +1,10 @@
 import { setupEditorLayout } from "./layout.js";
 import { setupEditorFileTree, FileType } from "./files.js";
 import { setupEditorTabBar } from "./tabs.js";
+import html from "./editor.html?raw";
+import css from "./editor.css?inline";
 
-export async function createEditor(container) {
+export function createEditor(container) {
         if (document.querySelector("script[src*=\"kit.fontawesome.com\"]") === null) {
                 const fontAwesomeScript = document.createElement("script");
                 fontAwesomeScript.src = "https://kit.fontawesome.com/03b601dbb5.js";
@@ -12,23 +14,15 @@ export async function createEditor(container) {
                 document.head.appendChild(fontAwesomeScript);
         }
 
-        const stylesheetUrl = new URL("./editor.css", import.meta.url);
-        if (document.querySelector(`link[rel="stylesheet"][href="${stylesheetUrl.href}"]`) === null) {
-                const stylesheetLink = document.createElement("link");
-                stylesheetLink.rel = "stylesheet";
-                stylesheetLink.href = stylesheetUrl.href;
+        if (document.querySelector("#editor-stylesheet") === null) {
+                const stylesheet = document.createElement("style");
+                stylesheet.id = "editor-stylesheet";
+                stylesheet.textContent = css;
 
-                document.head.appendChild(stylesheetLink);
-                await new Promise((resolve, reject) => {
-                        stylesheetLink.onload = resolve;
-                        stylesheetLink.onerror = reject;
-                });
+                document.head.appendChild(stylesheet);
         }
 
-        const htmlUrl = new URL("./editor.html", import.meta.url);
-        const htmlResponse = await fetch(htmlUrl);
-        container.innerHTML = await htmlResponse.text();
-
+        container.innerHTML = html;
         const editor = container.querySelector("#editor");
 
         setupEditorLayout(editor);
