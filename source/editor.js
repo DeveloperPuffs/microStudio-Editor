@@ -1,5 +1,5 @@
 import { setupEditorLayout } from "./layout.js";
-import { setupEditorFileTree, FileType } from "./files.js";
+import { setupEditorFileTree } from "./files.js";
 import { setupEditorTabBar } from "./tabs.js";
 import html from "./editor.html?raw";
 import css from "./editor.css?inline";
@@ -29,17 +29,28 @@ export function createEditor(container) {
 
         const fileTree = setupEditorFileTree(editor);
 
-        fileTree.addFile(null, FileType.SOURCE, "File A.js");
-        fileTree.addFile(null, FileType.SOURCE, "File B.js");
+        const files = [
+                { type: "file", name: "File A.js" },
+                { type: "file", name: "File A.js" },
+                {
+                        type: "folder", name: "Folder 1",
+                        children: [
+                                { type: "file", name: "File C.js" },
+                                {
+                                        type: "folder", name: "Folder 2",
+                                        children: [
+                                                { type: "file", name: "File D.js" },
+                                        ]
+                                },
+                        ]
+                },
+                { type: "file", name: "File E.js" },
+                { type: "file", name: "File F.js" },
+        ];
 
-        const folder1 = fileTree.addFile(null, FileType.FOLDER, "Folder 1");
-        fileTree.addFile(folder1, FileType.SOURCE, "File C.js");
-
-        const folder2 = fileTree.addFile(folder1, FileType.FOLDER, "Folder 2");
-        fileTree.addFile(folder2, FileType.SOURCE, "File D.js");
-
-        fileTree.addFile(folder1, FileType.SOURCE, "File E.js");
-        fileTree.addFile(null, FileType.SOURCE, "File F.js");
+        for (const file of files) {
+                fileTree.addFile(file);
+        }
 
         setupEditorTabBar(editor);
 };

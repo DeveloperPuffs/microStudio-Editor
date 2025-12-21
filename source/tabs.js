@@ -1,29 +1,24 @@
+import { getFilenameInformation, getIconFromExtension } from "./files.js";
 class Tab {
-        static Icon = Object.freeze({
-                source: `<i class="fa-solid fa-file-code"></i>`,
-                image: `<i class="fa-solid fa-file-image"></i>`,
-                map: `<i class="fa-regular fa-map"></i>`,
-                sound: `<i class="fa-solid fa-file-audio"></i>`,
-                music: `<i class="fa-solid fa-music"></i>`,
-                doc: `<i class="fa-solid fa-file"></i>`,
-        });
-
-        constructor(editor, name, icon, onClick = null, onClose = null) {
+        constructor(editor, name) {
                 this.editor = editor;
-                this._name = null;
-                this._icon = null;
-                this.onClick = onClick;
-                this.onClose = onClose;
+                this._name = name;
+                this.clickCallback = null;
+                this.closeCallback = null;
 
                 this.element = document.createElement("li");
                 this.element.setAttribute("draggable", true);
                 this.element.classList.add("tab");
 
+                const { extension } = getFilenameInformation(name);
+
                 this.iconElement = document.createElement("div");
+                this.iconElement.innerHTML = getIconFromExtension(extension);
                 this.element.appendChild(this.iconElement);
 
                 this.labelElement = document.createElement("span");
                 this.labelElement.classList.add("label");
+                this.labelElement.textContent = name;
                 this.element.appendChild(this.labelElement);
 
                 this.closeElement = document.createElement("div");
@@ -32,12 +27,12 @@ class Tab {
                 this.element.appendChild(this.closeElement);
 
                 this.element.addEventListener("click", () => {
-                        this.onClick?.();
+                        this.clickCallback?.();
                 });
 
                 this.closeElement.addEventListener("click", () => {
                         this.element.remove();
-                        this.onClose?.();
+                        this.closeCallback?.();
                 });
 
                 Object.defineProperty(this.element, "__tab", {
@@ -48,9 +43,6 @@ class Tab {
 
                 this.tabList = this.editor.querySelector("#tab-list");
                 this.tabList.appendChild(this.element);
-
-                this.name = name;
-                this.icon = icon;
         }
 
         get name() {
@@ -60,15 +52,6 @@ class Tab {
         set name(name) {
                 this._name = name;
                 this.labelElement.textContent = name;
-        }
-
-        get icon() {
-                return this._icon;
-        }
-
-        set icon(icon) {
-                this._icon = icon;
-                this.iconElement.innerHTML = icon;
         }
 }
 
@@ -229,7 +212,14 @@ export function setupEditorTabBar(editor) {
 
         // TODO: When opening a tab, place it right after the current selected tab
 
-        new Tab(editor, "something long? long?", Tab.Icon.image, null, null);
-        new Tab(editor, "ff", Tab.Icon.image, null, null);
-        new Tab(editor, "ff", Tab.Icon.source, null, null);
+        function openTab(name, type) {
+        }
+
+        new Tab(editor, "a.js");
+        new Tab(editor, "b.js");
+        new Tab(editor, "c.js");
+
+        return Object.freeze({
+                openTab
+        });
 }

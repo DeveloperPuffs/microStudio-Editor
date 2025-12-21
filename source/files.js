@@ -177,9 +177,8 @@ function ElementNode(NodeClass) {
                         super();
 
                         this.editor = editor;
-                        this._name = null;
-                        this._icon = null;
-                        this._renaming = false;
+                        this._name = name;
+                        this._icon = icon;
                         this.containsExtension = containsExtension;
 
                         this.element = document.createElement("li");
@@ -191,10 +190,12 @@ function ElementNode(NodeClass) {
                         });
 
                         this.iconElement = document.createElement("div");
+                        this.iconElement.innerHTML = icon;
                         this.element.appendChild(this.iconElement);
 
                         this.labelElement = document.createElement("div");
                         this.labelElement.classList.add("label");
+                        this.labelElement.textContent = name;
                         this.element.appendChild(this.labelElement);
 
                         this.labelElement.addEventListener("dblclick", event => {
@@ -217,9 +218,6 @@ function ElementNode(NodeClass) {
                                 writable: false,
                                 configurable: false
                         });
-
-                        this.name = name;
-                        this.icon = icon;
                 }
 
                 onClick() {
@@ -252,32 +250,30 @@ function ElementNode(NodeClass) {
                         this.element.classList.toggle("hidden", hidden);
                 }
 
+                get base() {
+                        if (!this.containsExtension) {
+                                return this._name;
+                        }
+
+                        const filenameInformation = getFilenameInformation(this._name);
+                        return filenameInformation.base;
+                }
+
+                get extension() {
+                        if (!this.containsExtension) {
+                                return "";
+                        }
+
+                        const filenameInformation = getFilenameInformation(this._name);
+                        return filenameInformation.extension;
+                }
+
                 getElement() {
                         return this.element;
                 }
 
                 getSubtreeElements() {
                         return [this.element];
-                }
-
-                getNameInformation() {
-                        const nameInformation = {
-                                baseName: this._name,
-                                extension: ""
-                        };
-
-                        // This needs to be checked with a property because folders can end with an extension
-                        if (this.containsExtension) {
-                                const index = this._name.lastIndexOf(".");
-                                nameInformation.baseName = this._name.slice(0, index);
-                                nameInformation.extension = this._name.slice(index);
-                        }
-
-                        return nameInformation;
-                }
-
-                canStartDrag() {
-                        return !this._renaming;
                 }
 
                 onParentChanged(parent) {
@@ -305,13 +301,11 @@ function ElementNode(NodeClass) {
                 }
 
                 beginRenaming() {
-                        if (this._renaming) {
+                        if (this.element.classList.contains("renaming")) {
                                 return;
                         }
 
-                        this._renaming = true;
-
-                        const { baseName, extension } = this.getNameInformation();
+                        this.element.classList.add("renaming");
 
                         const renameWrapper = document.createElement("div");
                         renameWrapper.classList.add("rename-wrapper");
@@ -319,13 +313,13 @@ function ElementNode(NodeClass) {
                         const input = document.createElement("input");
                         input.type = "text";
                         input.maxLength = 255;
-                        input.value = baseName;
+                        input.value = this.base;
                         input.classList.add("rename");
                         renameWrapper.appendChild(input);
 
-                        if (extension !== "") {
+                        if (this.containsExtension) {
                                 const extensionLabel = document.createElement("span");
-                                extensionLabel.textContent = extension;
+                                extensionLabel.textContent = this.extension;
                                 extensionLabel.classList.add("extension");
                                 renameWrapper.appendChild(extensionLabel);
                         }
@@ -355,7 +349,7 @@ function ElementNode(NodeClass) {
                         const commit = () => {
                                 const trimmedName = input.value.trim();
                                 if (trimmedName !== "") {
-                                        this.name = trimmedName + extension;
+                                        this.name = trimmedName + this.extension;
                                 }
 
                                 cleanup();
@@ -370,7 +364,7 @@ function ElementNode(NodeClass) {
                                 hideError();
 
                                 renameWrapper.replaceWith(this.labelElement);
-                                this._renaming = false;
+                                this.element.classList.remove("renaming");
                         };
 
                         input.addEventListener("input", () => {
@@ -391,7 +385,7 @@ function ElementNode(NodeClass) {
                                 }
 
                                 for (const sibling of this.getSiblings()) {
-                                        if (sibling.name === trimmedName + extension) {
+                                        if (sibling.name === trimmedName + this.extension) {
                                                 showError(`Cannot name file "${trimmedName}": File with same name already exists in folder`);
                                                 return;
                                         }
@@ -453,16 +447,9 @@ function ElementNode(NodeClass) {
 }
 
 class FileNode extends ElementNode(BaseNode) {
-        static Icon = Object.freeze({
-                source: `<i class="fa-solid fa-file-code"></i>`,
-                image: `<i class="fa-solid fa-file-image"></i>`,
-                map: `<i class="fa-regular fa-map"></i>`,
-                sound: `<i class="fa-solid fa-file-audio"></i>`,
-                music: `<i class="fa-solid fa-music"></i>`,
-                doc: `<i class="fa-solid fa-file"></i>`,
-        });
-
-        constructor(editor, name, icon, clickCallback = null) {
+        constructor(editor, name, clickCallback = null) {
+                const filenameInformation = getFilenameInformation(name);
+                const icon = getIconFromExtension(filenameInformation.extension);
                 super(editor, name, icon, true);
                 this.clickCallback = clickCallback;
         }
@@ -473,18 +460,15 @@ class FileNode extends ElementNode(BaseNode) {
 }
 
 class FolderNode extends ElementNode(ContainerNode) {
-        static Icon = Object.freeze({
-                closed: `<i class="fa-solid fa-folder"></i>`,
-                open: `<i class="fa-solid fa-folder-open"></i>`
-        });
-
         constructor(editor, name) {
-                super(editor, name, FolderNode.Icon.closed, false);
+                super(editor, name, `<i class="fa-solid fa-folder"></i>`, false);
         }
 
         onClick() {
                 this.expanded = !this.expanded;
-                this.icon = this.expanded ? FolderNode.Icon.open : FolderNode.Icon.closed;
+                this.icon = this.expanded
+                        ? `<i class="fa-solid fa-folder-open"></i>`
+                        : `<i class="fa-solid fa-folder"></i>`;
                 this.setDescendantsVisibility(this.expanded);
         }
 
@@ -771,8 +755,6 @@ class FileDrag {
                 }
 
                 if (shouldRename) {
-                        const { baseName, extension } = this.draggedNode.getNameInformation();
-
                         let temporaryName = "";
                         let temporaryNameNumber = 0;
                         let temporaryNameClash = true;
@@ -781,7 +763,7 @@ class FileDrag {
                                 temporaryNameClash = false;
 
                                 // I can use the previous siblings array because it didn't (and still dosen't) contain the newly dropped node
-                                temporaryName = `${baseName} (${temporaryNameNumber})${extension}`;
+                                temporaryName = `${this.draggedNode.base} (${temporaryNameNumber})${this.draggedNode.extension}`;
                                 for (const currentSibling of futureSiblings) {
                                         if (currentSibling.name === temporaryName) {
                                                 temporaryNameClash = true;
@@ -796,15 +778,52 @@ class FileDrag {
         }
 };
 
-export const FileType = Object.freeze({
-        SOURCE: Symbol("SOURCE"),
-        IMAGE: Symbol("IMAGE"),
-        MAP: Symbol("MAP"),
-        SOUND: Symbol("SOUND"),
-        MUSIC: Symbol("MUSIC"),
-        DOC: Symbol("DOC"),
-        FOLDER: Symbol("FOLDER")
-});
+export function getFilenameInformation(filename) {
+        const filenameInformation = {
+                base: filename,
+                extension: ""
+        };
+
+        const index = filename.lastIndexOf(".");
+        if (index !== -1) {
+                filenameInformation.base = filename.slice(0, index);
+                filenameInformation.extension = filename.slice(index);
+        }
+
+        return filenameInformation;
+}
+
+export function getIconFromExtension(extension) {
+        switch (extension) {
+                case ".js": case ".ms": {
+                        return `<i class="fa-solid fa-file-code"></i>`;
+                }
+
+                case ".png": case ".jpg": case ".jpeg": {
+                        return `<i class="fa-solid fa-file-image"></i>`;
+                }
+
+                case ".map": {
+                        return `<i class="fa-regular fa-map"></i>`;
+                }
+
+                case ".wav": {
+                        return `<i class="fa-solid fa-file-audio"></i>`;
+                }
+
+                case ".mp3": {
+                        return `<i class="fa-solid fa-music"></i>`;
+                }
+
+                case ".doc": {
+                        return `<i class="fa-solid fa-file"></i>`;
+                }
+
+                default: {
+                        return `<i class="fa-solid fa-question"></i>`;
+                }
+        }
+}
 
 export function setupEditorFileTree(editor) {
         const fileList = editor.querySelector("#file-list");
@@ -817,13 +836,8 @@ export function setupEditorFileTree(editor) {
                         return;
                 }
 
-                const draggedElement = event.target.closest(".file:not(.hidden):not(.dragging)");
+                const draggedElement = event.target.closest(".file:not(.hidden):not(.dragging):not(.renaming)");
                 if (draggedElement === null) {
-                        return;
-                }
-
-                const draggedNode = draggedElement.__node;
-                if (!draggedNode.canStartDrag()) {
                         return;
                 }
 
@@ -850,15 +864,6 @@ export function setupEditorFileTree(editor) {
                 currentDrag?.drop(event);
         });
 
-        const fileTypeToFileIcon = {
-                [FileType.SOURCE]: FileNode.Icon.source,
-                [FileType.IMAGE]: FileNode.Icon.image,
-                [FileType.MAP]: FileNode.Icon.map,
-                [FileType.SOUND]: FileNode.Icon.sound,
-                [FileType.MUSIC]: FileNode.Icon.music,
-                [FileType.DOC]: FileNode.Icon.doc
-        };
-
         const nodeToHandle = new WeakMap();
         const handleToNode = new WeakMap();
 
@@ -883,19 +888,23 @@ export function setupEditorFileTree(editor) {
                 return handle;
         }
 
-        function addFile(parent, type, name, clickCallback = null) {
-                const parentNode = handleToNode.get(parent) ?? rootNode;
+        function addFile({ parent, type, name, click, children }) {
+                const node = type === "folder"
+                        ? new FolderNode(editor, name)
+                        : new FileNode(editor, name, click);
 
-                if (type === FileType.FOLDER) {
-                        const node = new FolderNode(editor, name);
-                        parentNode.addChild(node);
-                        return createHandle(node);
+                const parentNode = handleToNode.get(parent) ?? rootNode;
+                parentNode.addChild(node);
+
+                const handle = createHandle(node);
+
+                if (type === "folder" && Array.isArray(children)) {
+                        for (const child of children) {
+                                addFile({...child, parent: handle});
+                        }
                 }
 
-                const icon = fileTypeToFileIcon[type];
-                const node = new FileNode(editor, name, icon, clickCallback);
-                parentNode.addChild(node);
-                return createHandle(node);
+                return handle;
         }
 
         function removeFile(handle, confirmation) {

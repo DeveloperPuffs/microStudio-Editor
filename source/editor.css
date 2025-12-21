@@ -218,6 +218,7 @@
 }
 
 .file .delete {
+        display: initial;
         opacity: 0;
 }
 
@@ -227,6 +228,10 @@
 
 .file:hover:not(.dragging) .delete:hover {
         opacity: var(--opacity-1);
+}
+
+.file.renaming .delete {
+        display: none;
 }
 
 .file-error {
