@@ -1,4 +1,5 @@
 import { getFilenameInformation, getIconFromExtension } from "./files.js";
+import { EditorEvent } from "./editor.js";
 class Tab {
         constructor(editor, name) {
                 this.editor = editor;
@@ -172,7 +173,7 @@ class TabDrag {
         }
 }
 
-export function setupEditorTabBar(editor) {
+export function setupEditorTabBar(editor, editorState) {
         const tabList = editor.querySelector("#tab-list");
 
         let currentDrag = null;
@@ -212,23 +213,35 @@ export function setupEditorTabBar(editor) {
 
         // TODO: When opening a tab, place it right after the current selected tab
 
-        const tabs = [];
+        const tabs = new Set();
 
         function openTab(name) {
                 const tab = new Tab(editor, name);
-                tabs.push(tab);
+                tabs.add(tab);
 
                 tab.closeCallback = () => {
-                        const index = tabs.indexOf(tab);
-                        if (index === -1) {
-                                return;
-                        }
-
-                        tabs.splice(index, 1);
+                        closeTab(tab);
                 };
+
+                return tab;
         }
 
+        function closeTab(tab) {
+                if (tabs.has(tab)) {
+                        tabs.delete(tab);
+                        editorState.closeFile();
+                }
+        }
+
+        editorState.registerEventListener(EditorEvent.FILE_OPENED, file => {
+                openTab();
+        });
+
+        editorState.registerEventListener(EditorEvent.FILE_CLOSED, file => {
+        })
+
         return Object.freeze({
-                openTab
+                openTab,
+                closeTab
         });
 }

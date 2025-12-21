@@ -417,7 +417,7 @@ function ElementNode(NodeClass) {
                 async requestDeletion(confirmation) {
                         if (!confirmation) {
                                 this.parent.removeChild(this);
-                                return;
+                                return true;
                         }
 
                         const deleteConfirmation = new Modal(this.editor, {
@@ -441,7 +441,10 @@ function ElementNode(NodeClass) {
 
                         if (await deleteConfirmation.prompt()) {
                                 this.parent.removeChild(this);
+                                return true;
                         }
+
+                        return false;
                 }
         };
 }
@@ -825,7 +828,7 @@ export function getIconFromExtension(extension) {
         }
 }
 
-export function setupEditorFileTree(editor) {
+export function setupEditorFileTree(editor, editorState) {
         const fileList = editor.querySelector("#file-list");
         const rootNode = new RootNode(editor, fileList);
 
@@ -864,56 +867,30 @@ export function setupEditorFileTree(editor) {
                 currentDrag?.drop(event);
         });
 
-        const nodeToHandle = new WeakMap();
-        const handleToNode = new WeakMap();
-
-        function createHandle(node) {
-                const handle = Object.freeze({
-                        get name() {
-                                return node.name;
-                        },
-
-                        set name(name) {
-                                node.name = name;
-                        },
-
-                        isFolder() {
-                                return node instanceof FolderNode;
-                        }
-                });
-
-                nodeToHandle.set(node, handle);
-                handleToNode.set(handle, node);
-
-                return handle;
-        }
-
-        function addFile({ parent, type, name, click, children }) {
-                const node = type === "folder"
+        function addFile({ parent, type, name, children }) {
+                const file = type === "folder"
                         ? new FolderNode(editor, name)
-                        : new FileNode(editor, name, click);
+                        : new FileNode(editor, name, () => {
+                                editorState.selectFile(file);
+                        });
 
-                const parentNode = handleToNode.get(parent) ?? rootNode;
-                parentNode.addChild(node);
-
-                const handle = createHandle(node);
+                const parentNode = parent?.isDescendantOf?.(rootNode) ? parent : rootNode;
+                parentNode.addChild(file);
 
                 if (type === "folder" && Array.isArray(children)) {
                         for (const child of children) {
-                                addFile({...child, parent: handle});
+                                addFile({...child, parent: file});
                         }
                 }
 
+                editorState.addFile(file);
                 return handle;
         }
 
-        function removeFile(handle, confirmation) {
-                const node = handleToNode.get(handle);
-                if (node === undefined) {
-                        return;
+        function removeFile(file, confirmation) {
+                if (file?.requestDeletion?.(confirmation)) {
+                        editorState.deleteFile(file);
                 }
-
-                node.requestDeletion(confirmation);
         }
 
         return Object.freeze({
