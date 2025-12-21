@@ -52,5 +52,9 @@ export function createEditor(container) {
                 fileTree.addFile(file);
         }
 
-        setupEditorTabBar(editor);
+        const tabBar = setupEditorTabBar(editor);
+
+        tabBar.openTab("File A.js");
+        tabBar.openTab("File B.js");
+        tabBar.openTab("File C.js");
 };

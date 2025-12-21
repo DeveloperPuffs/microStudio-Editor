@@ -212,12 +212,21 @@ export function setupEditorTabBar(editor) {
 
         // TODO: When opening a tab, place it right after the current selected tab
 
-        function openTab(name, type) {
-        }
+        const tabs = [];
 
-        new Tab(editor, "a.js");
-        new Tab(editor, "b.js");
-        new Tab(editor, "c.js");
+        function openTab(name) {
+                const tab = new Tab(editor, name);
+                tabs.push(tab);
+
+                tab.closeCallback = () => {
+                        const index = tabs.indexOf(tab);
+                        if (index === -1) {
+                                return;
+                        }
+
+                        tabs.splice(index, 1);
+                };
+        }
 
         return Object.freeze({
                 openTab
