@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": false,
+    "noEmit": true,
+    "strict": false,
+    "lib": [
+      "es2020",
+      "dom"
+    ]
+  },
+  "include": ["source"]
+}

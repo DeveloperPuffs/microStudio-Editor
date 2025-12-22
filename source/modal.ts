@@ -1,7 +1,12 @@
 export class Modal {
-        constructor(editor, { title = null, message = null, buttons = null }) {
+        private resolve?: (_: unknown | PromiseLike<unknown>) => void;
+        private editor: HTMLElement;
+        private overlay: HTMLElement;
+        private element: HTMLElement
+
+        constructor(editor: HTMLElement, { title = null, message = null, buttons = null }) {
                 this.editor = editor;
-                this._resolve = null;
+                this.resolve = null;
 
                 this.overlay = document.createElement("div");
                 this.overlay.className = "modal-overlay";
@@ -56,14 +61,14 @@ export class Modal {
 
         prompt() {
                 this.editor.appendChild(this.overlay);
-                return new Promise(resolve => {
-                        this._resolve = resolve;
+                return new Promise<unknown>(resolve => {
+                        this.resolve = resolve;
                 });
         }
 
-        close(result) {
+        close(result: unknown) {
                 this.overlay.remove();
-                this._resolve?.(result);
-                this._resolve = null;
+                this.resolve?.(result);
+                this.resolve = null;
         }
 }
