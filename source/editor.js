@@ -1,97 +1,23 @@
 import { setupEditorLayout } from "./layout.js";
-import { setupEditorFileTree } from "./files.js";
-import { setupEditorTabBar } from "./tabs.js";
+import { setupEditorFiles } from "./files.js";
 import html from "./editor.html?raw";
 import css from "./editor.css?inline";
 
-export const EditorEvent = Object.freeze({
-        FILE_ADDED: Symbol("EDITOR_FILE_ADDED"),
-        FILE_OPENED: Symbol("EDITOR_FILE_OPENED"),
-        FILE_CLOSED: Symbol("EDITOR_FILE_CLOSED"),
-        FILE_SELECTED: Symbol("EDITOR_FILE_SELECTED"),
-        FILE_DELETED: Symbol("EDITOR_FILE_DELETED")
-});
-
-function createEditorState() {
-        const eventListeners = new Map();
-        function registerEventListener(eventType, listener) {
-                const listeners = eventListeners.get(eventType);
-
-                if (listeners === undefined) {
-                        eventListeners.set(eventType, [listener]);
-                        return;
-                }
-
-                listeners.push(listener);
+export class BaseView {
+        constructor(editor) {
+                this.editor = editor;
+                this.container = editor.querySelector("#center-container");
+                this.wrapper = document.createElement("div");
+                this.wrapper.classList.add("view-wrapper");
         }
 
-        function notifyEventListeners(eventType, data) {
-                const listeners = eventListeners.get(eventType);
-                if (listeners === undefined) {
-                        return;
-                }
-
-                for (const listener of listeners) {
-                        listener(data);
-                }
+        present() {
+                this.container.appendChild(this.wrapper);
         }
 
-        const allFiles = new Set();
-        const openFiles = new Set();
-        let selectedFile = null;
-
-        function addFile(file) {
-                if (!allFiles.has(file)) {
-                        allFiles.add(file);
-                        notifyEventListeners(EditorEvent.FILE_ADDED, file);
-                }
+        dismiss() {
+                this.wrapper.remove();
         }
-
-        function selectFile(file) {
-                if (!openFiles.has(file)) {
-                        openFiles.add(file);
-                        notifyEventListeners(EditorEvent.FILE_OPENED, file);
-                }
-
-                if (selectedFile !== file) {
-                        selectedFile = file;
-                        notifyEventListeners(EditorEvent.FILE_SELECTED, file);
-                }
-        }
-
-        function closeFile(file) {
-                if (selectedFile === file) {
-                        selectedFile = null;
-                        notifyEventListeners(EditorEvent.FILE_SELECTED, null);
-                }
-
-                if (openFiles.has(file)) {
-                        openFiles.delete(file);
-                        notifyEventListeners(EditorEvent.FILE_CLOSED, file);
-                }
-        }
-
-        function deleteFile(file) {
-                closeFile(file);
-
-                if (allFiles.has(file)) {
-                        allFiles.delete(file);
-                        notifyEventListeners(EditorEvent.FILE_DELETED, file);
-                }
-        }
-
-        function getSelectedFile() {
-                return selectedFile;
-        }
-
-        return Object.freeze({
-                registerEventListener,
-                addFile,
-                selectFile,
-                closeFile,
-                deleteFile,
-                getSelectedFile
-        });
 }
 
 export function createEditor(container) {
@@ -117,13 +43,43 @@ export function createEditor(container) {
 
         setupEditorLayout(editor);
 
-        const editorState = createEditorState();
+        const fileViews = new Map();
+        let currentView = null;
 
-        const fileTree = setupEditorFileTree(editor, editorState);
+        function onFileOpen(file) {
+                if (currentView !== null) {
+                        currentView.dismiss();
+                }
 
-        const files = [
+                if (!fileViews.has(file)) {
+                        const view = new BaseView(editor);
+                        view.wrapper.textContent = file.name;
+                        fileViews.set(file, view);
+                }
+
+                currentView = fileViews.get(file);
+                currentView.present();
+        }
+
+        function onFileClose(file) {
+                if (!fileViews.has(file)) {
+                        return; 
+                }
+
+                const view = fileViews.get(file);
+                if (view === currentView) {
+                        currentView = null;
+                        view.dismiss();
+                }
+
+                fileViews.delete(file);
+        }
+
+        const files = setupEditorFiles(editor, onFileOpen, onFileClose);
+
+        const filesData = [
                 { type: "file", name: "File A.js" },
-                { type: "file", name: "File A.js" },
+                { type: "file", name: "File B.js" },
                 {
                         type: "folder", name: "Folder 1",
                         children: [
@@ -140,13 +96,7 @@ export function createEditor(container) {
                 { type: "file", name: "File F.js" },
         ];
 
-        for (const file of files) {
-                fileTree.addFile(file);
+        for (const fileData of filesData) {
+                files.addFile(fileData);
         }
-
-        const tabBar = setupEditorTabBar(editor, editorState);
-
-        tabBar.openTab("File A.js");
-        tabBar.openTab("File B.js");
-        tabBar.openTab("File C.js");
 };
