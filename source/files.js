@@ -14,6 +14,14 @@ class BaseNode {
                 this.onParentChanged(parent);
         }
 
+        linkElement(element) {
+                Object.defineProperty(element, "__node", {
+                        value: this,
+                        writable: false,
+                        configurable: false
+                });
+        }
+
         onParentChanged() {
                 // Should be overriden by subclasses if needed
         }
@@ -143,24 +151,19 @@ class ContainerNode extends BaseNode {
 }
 
 class RootNode extends ContainerNode {
-        constructor(editor, element) {
+        constructor(editor, fileList) {
                 super();
 
                 this.editor = editor;
-                this.element = element;
-
-                Object.defineProperty(this.element, "__node", {
-                        value: this,
-                        writable: false,
-                        configurable: false
-                });
+                this.fileList = fileList;
+                this.linkElement(fileList);
         }
 
         placeChild(child, sibling) {
                 if (sibling === this) {
                         // Add all of the elements at the start of the root
                         const elements = child.getSubtreeElements();
-                        this.element.prepend(...elements);
+                        this.fileList.prepend(...elements);
                         return;
                 }
 
@@ -177,15 +180,14 @@ function ElementNode(NodeClass) {
                         super();
 
                         this.editor = editor;
-                        this._name = name;
-                        this._icon = icon;
                         this.containsExtension = containsExtension;
 
                         this.element = document.createElement("li");
                         this.element.setAttribute("draggable", true);
                         this.element.classList.add("file");
 
-                        this.element.addEventListener("click", () => {
+                        this.element.addEventListener("click", event => {
+                                event.stopPropagation();
                                 this.onClick();
                         });
 
@@ -213,32 +215,22 @@ function ElementNode(NodeClass) {
                                 this.requestDeletion(true);
                         });
 
-                        Object.defineProperty(this.element, "__node", {
-                                value: this,
-                                writable: false,
-                                configurable: false
-                        });
-                }
-
-                onClick() {
-                        // Should be overriden by subclasses if needed to
+                        this.linkElement(this.element);
                 }
 
                 get name() {
-                        return this._name;
+                        return this.labelElement.textContent;
                 }
 
                 set name(name) {
-                        this._name = name;
                         this.labelElement.textContent = name;
                 }
 
                 get icon() {
-                        return this._icon;
+                        return this.iconElement.innerHTML;
                 }
 
                 set icon(icon) {
-                        this._icon = icon;
                         this.iconElement.innerHTML = icon;
                 }
 
@@ -252,10 +244,10 @@ function ElementNode(NodeClass) {
 
                 get base() {
                         if (!this.containsExtension) {
-                                return this._name;
+                                return this.name;
                         }
 
-                        const filenameInformation = getFilenameInformation(this._name);
+                        const filenameInformation = getFilenameInformation(this.name);
                         return filenameInformation.base;
                 }
 
@@ -264,7 +256,7 @@ function ElementNode(NodeClass) {
                                 return "";
                         }
 
-                        const filenameInformation = getFilenameInformation(this._name);
+                        const filenameInformation = getFilenameInformation(this.name);
                         return filenameInformation.extension;
                 }
 
@@ -298,6 +290,22 @@ function ElementNode(NodeClass) {
                                 currentParent = currentParent.parent;
                                 ++nestedDepth;
                         }
+                }
+
+                onClick() {
+                        // Should be overriden by subclasses if needed
+                }
+
+                onDelete() {
+                        this.parent.removeChild(this);
+                }
+
+                scrollIntoView() {
+                        this.element.scrollIntoView({
+                                block: "nearest",
+                                inline: "center",
+                                behavior: "auto"
+                        });
                 }
 
                 beginRenaming() {
@@ -416,8 +424,8 @@ function ElementNode(NodeClass) {
 
                 async requestDeletion(confirmation) {
                         if (!confirmation) {
-                                this.parent.removeChild(this);
-                                return;
+                                this.onDelete();
+                                return true;
                         }
 
                         const deleteConfirmation = new Modal(this.editor, {
@@ -440,35 +448,147 @@ function ElementNode(NodeClass) {
                         });
 
                         if (await deleteConfirmation.prompt()) {
-                                this.parent.removeChild(this);
+                                this.onDelete();
+                                return true;
                         }
+
+                        return false;
                 }
         };
 }
 
 class FileNode extends ElementNode(BaseNode) {
-        constructor(editor, name, clickCallback = null) {
-                const filenameInformation = getFilenameInformation(name);
-                const icon = getIconFromExtension(filenameInformation.extension);
+        constructor(editor, name, selectFile, closeFile) {
+                const { extension } = getFilenameInformation(name);
+                let icon = `<i class="fa-solid fa-question"></i>`;
+
+                switch (extension) {
+                        case ".js": case ".ms": {
+                                icon = `<i class="fa-solid fa-file-code"></i>`;
+                                break;
+                        }
+
+                        case ".png": case ".jpg": case ".jpeg": {
+                                icon = `<i class="fa-solid fa-file-image"></i>`;
+                                break;
+                        }
+
+                        case ".map": {
+                                icon = `<i class="fa-regular fa-map"></i>`;
+                                break;
+                        }
+
+                        case ".wav": {
+                                icon = `<i class="fa-solid fa-file-audio"></i>`;
+                                break;
+                        }
+
+                        case ".mp3": {
+                                icon = `<i class="fa-solid fa-music"></i>`;
+                                break;
+                        }
+
+                        case ".md": {
+                                icon = `<i class="fa-solid fa-file"></i>`;
+                                break;
+                        }
+                }
+
                 super(editor, name, icon, true);
-                this.clickCallback = clickCallback;
+
+                this.selectFile = selectFile;
+                this.closeFile = closeFile;
+
+                this.tabList = this.editor.querySelector("#tab-list");
+                this.tabElement = document.createElement("li");
+                this.tabElement.setAttribute("draggable", true);
+                this.tabElement.classList.add("tab");
+
+                this.tabIconElement = document.createElement("div");
+                this.tabIconElement.innerHTML = icon;
+                this.tabElement.appendChild(this.tabIconElement);
+
+                this.tabLabelElement = document.createElement("span");
+                this.tabLabelElement.classList.add("label");
+                this.tabLabelElement.textContent = name;
+                this.tabElement.appendChild(this.tabLabelElement);
+
+                this.tabCloseElement = document.createElement("div");
+                this.tabCloseElement.classList.add("close");
+                this.tabCloseElement.innerHTML = `<i class="fa-solid fa-xmark"></i>`;
+                this.tabElement.appendChild(this.tabCloseElement);
+
+                this.tabElement.addEventListener("click", event => {
+                        event.stopPropagation();
+                        this.selectFile(this);
+                });
+
+                this.tabCloseElement.addEventListener("click", event => {
+                        event.stopPropagation();
+                        this.tabElement.remove();
+                        this.closeFile(this);
+                });
+        }
+
+        get name() {
+                return super.name;
+        }
+
+        set name(name) {
+                super.name = name;
+                this.tabLabelElement.textContent = name;
         }
 
         onClick() {
-                this.clickCallback?.();
+                this.selectFile(this);
+        }
+
+        select(previousFile) {
+                if (!this.tabList.contains(this.tabElement)) {
+                        this.tabList.appendChild(this.tabElement);
+
+                        if (previousFile !== null) {
+                                const previousTab = previousFile.tabElement;
+                                previousTab.after(this.tabElement);
+                        }
+
+                        this.tabElement.scrollIntoView({
+                                block: "nearest",
+                                inline: "center",
+                                behavior: "auto"
+                        });
+                }
+
+                this.element.classList.add("selected");
+                this.tabElement.classList.add("selected");
+        }
+
+        onDelete() {
+                this.tabElement.remove();
+                this.closeFile(this);
+                super.onDelete();
         }
 }
 
 class FolderNode extends ElementNode(ContainerNode) {
+        static CLOSED_ICON = `<i class="fa-solid fa-folder"></i>`;
+        static OPEN_ICON = `<i class="fa-solid fa-folder-open"></i>`;
+
         constructor(editor, name) {
-                super(editor, name, `<i class="fa-solid fa-folder"></i>`, false);
+                super(editor, name, FolderNode.CLOSED_ICON, false);
+        }
+
+        onDelete() {
+                this.forEachChild(child => {
+                        child.onDelete();
+                });
+
+                super.onDelete();
         }
 
         onClick() {
                 this.expanded = !this.expanded;
-                this.icon = this.expanded
-                        ? `<i class="fa-solid fa-folder-open"></i>`
-                        : `<i class="fa-solid fa-folder"></i>`;
+                this.icon = this.expanded ? FolderNode.OPEN_ICON : FolderNode.CLOSED_ICON;
                 this.setDescendantsVisibility(this.expanded);
         }
 
@@ -646,7 +766,7 @@ class FileDrag {
                 if (this.receivingNode instanceof FolderNode && !this.receivingNode.expanded && this.dropPosition === FileDrag.DropPosition.BELOW) {
                         if (this.folderOpenTimeout === null) {
                                 this.folderOpenTimeout = setTimeout(() => {
-                                        this.receivingNode.onClick();
+                                        this.receivingNode.toggle();
                                         this.folderOpenTimeout = null;
                                 }, FileDrag.FOLDER_HOVER_OPEN_DELAY);
                         }
@@ -778,6 +898,123 @@ class FileDrag {
         }
 };
 
+class TabDrag {
+        static DropPosition = Object.freeze({
+                LEFT: Symbol("LEFT"),
+                RIGHT: Symbol("RIGHT")
+        });
+
+        constructor(editor, draggedElement, onFinish = null) {
+                this.tabList = editor.querySelector("#tab-list");
+                this.dropLine = editor.querySelector("#tab-drop-line");
+                this.draggedElement = draggedElement;
+                this.receivingElement = null;
+                this.dropPosition = null;
+                this.onFinish = onFinish;
+        }
+
+        dragStart(event) {
+                this.draggedElement.classList.add("dragging");
+                event.dataTransfer.effectAllowed = "move";
+                event.dataTransfer.setData("text/plain", "ignored");
+        }
+
+        dragEnd(_) {
+                this.dropLine.classList.remove("active");
+                this.draggedElement.classList.remove("dragging");
+                this.onFinish?.();
+        }
+
+        dragOver(event) {
+                const containerRectangle = this.tabList.getBoundingClientRect();
+
+                const receivingElement = event.target.closest(".tab");
+                if (receivingElement === null) {
+                        // Check if the drag is to the right of the very last element
+                        const lastElement = this.tabList.lastElementChild;
+                        if (lastElement === null) {
+                                event.preventDefault();
+                                event.dataTransfer.dropEffect = "move";
+
+                                // The tab list is empty, allow a drop at the root
+                                this.dropLine.classList.add("active");
+                                this.dropLine.style.left = "0";
+                                this.dropLine.style.height = `${containerRectangle.height}px`;
+                                this.receivingElement = this.tabList;
+                                return;
+                        }
+
+                        if (lastElement === this.draggedElement) {
+                                this.dropLine.classList.remove("active");
+                                return;
+                        }
+
+                        const lastRectangle = lastElement.getBoundingClientRect();
+                        if (event.clientX > lastRectangle.right) {
+                                event.preventDefault();
+                                event.dataTransfer.dropEffect = "move";
+
+                                // Dragging to the right of the last element, allow a drop at the root
+                                this.dropLine.classList.add("active");
+                                this.dropLine.style.left = `${lastRectangle.right - containerRectangle.left}px`;
+                                this.dropLine.style.height = `${lastRectangle.height}px`;
+                                this.receivingElement = this.tabList;
+                                return;
+                        }
+
+                        this.dropLine.classList.remove("active");
+                        return;
+                }
+
+                // You can't drop a tab to the left or to the right of itself
+                if (receivingElement === this.draggedElement) {
+                        this.dropLine.classList.remove("active");
+                        return;
+                }
+
+                event.preventDefault();
+                event.dataTransfer.dropEffect = "move";
+                this.receivingElement = receivingElement;
+
+                const receivingRectangle = receivingElement.getBoundingClientRect();
+                this.dropPosition = event.clientX < receivingRectangle.left + receivingRectangle.width / 2
+                        ? TabDrag.DropPosition.LEFT : TabDrag.DropPosition.RIGHT;
+                this.dropLine.style.left = this.dropPosition === TabDrag.DropPosition.LEFT
+                        ? `${receivingRectangle.left - containerRectangle.left}px`
+                        : `${receivingRectangle.right - containerRectangle.left}px`;
+
+                // Make sure the height of the drop line matches even when there is a horizontal scrollbar
+                this.dropLine.style.height = `${receivingRectangle.height}px`;
+                this.dropLine.classList.add("active");
+        }
+
+        dragLeave(event) {
+                if (event.relatedTarget === null || !this.tabList.contains(event.relatedTarget)) {
+                        this.dropLine.classList.remove("active");
+                }
+        }
+
+        drop(event) {
+                event.preventDefault();
+
+                if (this.receivingElement === this.tabList) {
+                        // If the receiving node is the root, it means that I should add it to the end of it
+                        this.tabList.appendChild(this.draggedElement);
+                        return;
+                }
+
+                if (this.dropPosition === TabDrag.DropPosition.LEFT) {
+                        this.receivingElement.before(this.draggedElement);
+                        return;
+                }
+
+                if (this.dropPosition === TabDrag.DropPosition.RIGHT) {
+                        this.receivingElement.after(this.draggedElement);
+                        return;
+                }
+        }
+}
+
 export function getFilenameInformation(filename) {
         const filenameInformation = {
                 base: filename,
@@ -793,40 +1030,9 @@ export function getFilenameInformation(filename) {
         return filenameInformation;
 }
 
-export function getIconFromExtension(extension) {
-        switch (extension) {
-                case ".js": case ".ms": {
-                        return `<i class="fa-solid fa-file-code"></i>`;
-                }
-
-                case ".png": case ".jpg": case ".jpeg": {
-                        return `<i class="fa-solid fa-file-image"></i>`;
-                }
-
-                case ".map": {
-                        return `<i class="fa-regular fa-map"></i>`;
-                }
-
-                case ".wav": {
-                        return `<i class="fa-solid fa-file-audio"></i>`;
-                }
-
-                case ".mp3": {
-                        return `<i class="fa-solid fa-music"></i>`;
-                }
-
-                case ".doc": {
-                        return `<i class="fa-solid fa-file"></i>`;
-                }
-
-                default: {
-                        return `<i class="fa-solid fa-question"></i>`;
-                }
-        }
-}
-
-export function setupEditorFileTree(editor) {
+export function setupEditorFiles(editor, onFileOpen, onFileClose) {
         const fileList = editor.querySelector("#file-list");
+        const tabList = editor.querySelector("#tab-list");
         const rootNode = new RootNode(editor, fileList);
 
         let currentDrag = null;
@@ -848,76 +1054,115 @@ export function setupEditorFileTree(editor) {
                 currentDrag.dragStart(event);
         });
 
-        fileList.addEventListener("dragend", event => {
-                currentDrag?.dragEnd(event);
-        });
-
-        fileList.addEventListener("dragover", event => {
-                currentDrag?.dragOver(event);
-        });
-
-        fileList.addEventListener("dragleave", event => {
-                currentDrag?.dragLeave(event);
-        });
-
-        fileList.addEventListener("drop", event => {
-                currentDrag?.drop(event);
-        });
-
-        const nodeToHandle = new WeakMap();
-        const handleToNode = new WeakMap();
-
-        function createHandle(node) {
-                const handle = Object.freeze({
-                        get name() {
-                                return node.name;
-                        },
-
-                        set name(name) {
-                                node.name = name;
-                        },
-
-                        isFolder() {
-                                return node instanceof FolderNode;
-                        }
-                });
-
-                nodeToHandle.set(node, handle);
-                handleToNode.set(handle, node);
-
-                return handle;
-        }
-
-        function addFile({ parent, type, name, click, children }) {
-                const node = type === "folder"
-                        ? new FolderNode(editor, name)
-                        : new FileNode(editor, name, click);
-
-                const parentNode = handleToNode.get(parent) ?? rootNode;
-                parentNode.addChild(node);
-
-                const handle = createHandle(node);
-
-                if (type === "folder" && Array.isArray(children)) {
-                        for (const child of children) {
-                                addFile({...child, parent: handle});
-                        }
-                }
-
-                return handle;
-        }
-
-        function removeFile(handle, confirmation) {
-                const node = handleToNode.get(handle);
-                if (node === undefined) {
+        tabList.addEventListener("dragstart", event => {
+                if (currentDrag !== null) {
                         return;
                 }
 
-                node.requestDeletion(confirmation);
+                const draggedElement = event.target.closest(".tab:not(.dragging)");
+                if (draggedElement === null) {
+                        return;
+                }
+
+                currentDrag = new TabDrag(editor, draggedElement, () => {
+                        currentDrag = null;
+                });
+
+                currentDrag.dragStart(event);
+        });
+
+        const dragTargets = [fileList, tabList];
+        for (const dragTarget of dragTargets) {
+                dragTarget.addEventListener("dragend", event => {
+                        currentDrag?.dragEnd(event);
+                });
+
+                dragTarget.addEventListener("dragover", event => {
+                        currentDrag?.dragOver(event);
+                });
+
+                dragTarget.addEventListener("dragleave", event => {
+                        currentDrag?.dragLeave(event);
+                });
+
+                dragTarget.addEventListener("drop", event => {
+                        currentDrag?.drop(event);
+                });
+        }
+
+        const selectionHistory = [];
+        let currentFile = null;
+
+        function removeFromHistory(file) {
+                // Loop backwards to remove all instances of the current file from the selection history
+                for (let selectionIndex = selectionHistory.length - 1; selectionIndex >= 0; --selectionIndex) {
+                        if (selectionHistory[selectionIndex] === file) {
+                                selectionHistory.splice(selectionIndex, 1);
+                        }
+                }
+        }
+
+        function unselectAll() {
+                const selectedElements = editor.querySelectorAll(".selected");
+                for (const selectedElement of selectedElements) {
+                        selectedElement.classList.remove("selected");
+                }
+        }
+
+        function selectFile(file) {
+                if (currentFile === file) {
+                        return;
+                }
+
+                if (currentFile !== null) {
+                        removeFromHistory(currentFile);
+                        selectionHistory.push(currentFile);
+                }
+
+                unselectAll();
+
+                file.select(currentFile);
+                currentFile = file;
+
+                onFileOpen(currentFile);
+        }
+
+        function closeFile(file) {
+                removeFromHistory(file);
+                onFileClose(file);
+
+                if (currentFile !== file) {
+                        return;
+                }
+
+                // The following behavior jumps to the previously selected tab
+
+                unselectAll();
+
+                const previousFile = currentFile;
+                currentFile = selectionHistory.pop() ?? null;
+                if (currentFile !== null) {
+                        currentFile.select(previousFile);
+                        onFileOpen(currentFile);
+                }
+        }
+
+        function addFile({ parent, type, name, children }) {
+                const file = type === "folder" ? new FolderNode(editor, name) : new FileNode(editor, name, selectFile, closeFile);
+                const parentNode = parent?.isDescendantOf?.(rootNode) ? parent : rootNode;
+                parentNode.addChild(file);
+
+                if (type === "folder" && Array.isArray(children)) {
+                        for (const child of children) {
+                                addFile({...child, parent: file});
+                        }
+                }
+
+                file.scrollIntoView();
+                return file;
         }
 
         return Object.freeze({
-                addFile,
-                removeFile
+                addFile
         });
 }

@@ -1,8 +1,24 @@
 import { setupEditorLayout } from "./layout.js";
-import { setupEditorFileTree } from "./files.js";
-import { setupEditorTabBar } from "./tabs.js";
+import { setupEditorFiles } from "./files.js";
 import html from "./editor.html?raw";
 import css from "./editor.css?inline";
+
+export class BaseView {
+        constructor(editor) {
+                this.editor = editor;
+                this.container = editor.querySelector("#center-container");
+                this.wrapper = document.createElement("div");
+                this.wrapper.classList.add("view-wrapper");
+        }
+
+        present() {
+                this.container.appendChild(this.wrapper);
+        }
+
+        dismiss() {
+                this.wrapper.remove();
+        }
+}
 
 export function createEditor(container) {
         if (document.querySelector("script[src*=\"kit.fontawesome.com\"]") === null) {
@@ -27,11 +43,43 @@ export function createEditor(container) {
 
         setupEditorLayout(editor);
 
-        const fileTree = setupEditorFileTree(editor);
+        const fileViews = new Map();
+        let currentView = null;
 
-        const files = [
+        function onFileOpen(file) {
+                if (currentView !== null) {
+                        currentView.dismiss();
+                }
+
+                if (!fileViews.has(file)) {
+                        const view = new BaseView(editor);
+                        view.wrapper.textContent = file.name;
+                        fileViews.set(file, view);
+                }
+
+                currentView = fileViews.get(file);
+                currentView.present();
+        }
+
+        function onFileClose(file) {
+                if (!fileViews.has(file)) {
+                        return; 
+                }
+
+                const view = fileViews.get(file);
+                if (view === currentView) {
+                        currentView = null;
+                        view.dismiss();
+                }
+
+                fileViews.delete(file);
+        }
+
+        const files = setupEditorFiles(editor, onFileOpen, onFileClose);
+
+        const filesData = [
                 { type: "file", name: "File A.js" },
-                { type: "file", name: "File A.js" },
+                { type: "file", name: "File B.js" },
                 {
                         type: "folder", name: "Folder 1",
                         children: [
@@ -48,13 +96,7 @@ export function createEditor(container) {
                 { type: "file", name: "File F.js" },
         ];
 
-        for (const file of files) {
-                fileTree.addFile(file);
+        for (const fileData of filesData) {
+                files.addFile(fileData);
         }
-
-        const tabBar = setupEditorTabBar(editor);
-
-        tabBar.openTab("File A.js");
-        tabBar.openTab("File B.js");
-        tabBar.openTab("File C.js");
 };
