@@ -25,14 +25,11 @@
                 <main>
                         <span>Loading editor...</span>
                 </main>
-                <script>
+                <script type="module">
+                        import * as Editor from "/source/editor.js";
                         const documentMain = document.querySelector("main");
                         documentMain.replaceChildren();
-
-                        import(`/source/editor.js?v=${Date.now()}`)
-                                .then(Editor => {
-                                        Editor.createEditor(documentMain);
-                                });
+                        Editor.setupEditor(documentMain);
                 </script>
         </body>
 </html>

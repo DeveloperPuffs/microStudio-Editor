@@ -1,12 +1,34 @@
-export class Modal {
-        private resolve?: (_: unknown | PromiseLike<unknown>) => void;
-        private editor: HTMLElement;
-        private overlay: HTMLElement;
-        private element: HTMLElement
+export type ButtonOptions = {
+        label: string;
+        value?: unknown;
+        foregroundColor?: string;
+        backgroundColor?: string;
+};
 
-        constructor(editor: HTMLElement, { title = null, message = null, buttons = null }) {
-                this.editor = editor;
-                this.resolve = null;
+export type DialogOptions = {
+        title?: string;
+        body?: string | HTMLElement;
+        buttonOptions?: readonly ButtonOptions[];
+};
+
+export class Modal {
+        static defaultButtonOptions: Readonly<ButtonOptions>[] = [
+                {
+                        label: "Cancel",
+                        value: false
+                },
+                {
+                        label: "Ok",
+                        value: true
+                }
+        ];
+
+        private resolve?: (_: unknown | PromiseLike<unknown>) => void;
+        private overlay: HTMLDivElement;
+        private element: HTMLDivElement;
+
+        constructor({ title, body, buttonOptions }: DialogOptions = {}) {
+                this.resolve = undefined;
 
                 this.overlay = document.createElement("div");
                 this.overlay.className = "modal-overlay";
@@ -18,49 +40,50 @@ export class Modal {
                 this.element = document.createElement("div");
                 this.element.classList.add("modal");
 
-                if (title !== null) {
+                if (title !== undefined) {
                         const headerElement = document.createElement("div");
                         headerElement.classList.add("modal-header");
                         headerElement.textContent = title;
                         this.element.appendChild(headerElement);
                 }
 
-                if (message !== null) {
+                if (body !== undefined) {
                         const bodyElement = document.createElement("div");
                         bodyElement.classList.add("modal-body");
-                        if (typeof message === "string") {
-                                bodyElement.innerHTML = message;
+                        if (typeof body === "string") {
+                                bodyElement.innerHTML = body;
                         } else {
-                                bodyElement.appendChild(message);
+                                bodyElement.appendChild(body);
                         }
 
                         this.element.appendChild(bodyElement);
                 }
 
-                if (buttons !== null) {
-                        const footerElement = document.createElement("div");
-                        footerElement.classList.add("modal-footer");
+                const footerElement = document.createElement("div");
+                footerElement.classList.add("modal-footer");
+                this.element.appendChild(footerElement);
 
-                        buttons.forEach(button => {
-                                const buttonElement = document.createElement("button");
-                                buttonElement.textContent = button.label;
-                                buttonElement.style.backgroundColor = button.backgroundColor ?? "var(--background-color-2)";
+                buttonOptions ??= Modal.defaultButtonOptions;
+                for (const buttonOption of buttonOptions) {
+                        const button = document.createElement("button");
+                        button.textContent = buttonOption.label;
+                        button.style.color = buttonOption.foregroundColor ?? "var(foreground-color-1)";
+                        button.style.backgroundColor = buttonOption.backgroundColor ?? "var(--background-color-2)";
 
-                                buttonElement.addEventListener("click", () => {
-                                        this.close(button.value ?? null);
-                                });
-
-                                footerElement.appendChild(buttonElement);
+                        button.addEventListener("click", () => {
+                                this.close(buttonOption.value);
                         });
 
-                        this.element.appendChild(footerElement);
+                        footerElement.appendChild(button);
                 }
 
                 this.overlay.appendChild(this.element);
         }
 
         prompt() {
-                this.editor.appendChild(this.overlay);
+                const editor = document.querySelector<HTMLDivElement>("#editor")!;
+                editor.appendChild(this.overlay);
+
                 return new Promise<unknown>(resolve => {
                         this.resolve = resolve;
                 });
@@ -69,6 +92,6 @@ export class Modal {
         close(result: unknown) {
                 this.overlay.remove();
                 this.resolve?.(result);
-                this.resolve = null;
+                this.resolve = undefined;
         }
 }

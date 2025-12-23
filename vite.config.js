@@ -15,7 +15,7 @@ export default defineConfig({
             },
             mangle: {
                 toplevel: true,
-                reserved: ["createEditor"]
+                reserved: ["setupEditor"]
             },
             format: {
                 comments: false
