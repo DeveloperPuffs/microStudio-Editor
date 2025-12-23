@@ -1,22 +1,21 @@
 {
-  "name": "microstudio-editor",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
-  },
-  "devDependencies": {
-    "monaco-editor": "^0.55.1",
-    "monaco-editor-webpack-plugin": "^7.1.1",
-    "terser": "^5.44.1",
-    "typescript": "^5.9.3",
-    "vite": "^7.3.0",
-    "vite-plugin-monaco-editor": "^1.1.0"
-  },
-  "dependencies": {
-    "monaco-editor-core": "^0.55.1",
-    "monaco-languages": "^2.11.1"
-  }
+        "name": "microstudio-editor",
+        "private": true,
+        "type": "module",
+        "scripts": {
+                "dev": "vite dev",
+                "build": "vite build"
+        },
+        "devDependencies": {
+                "monaco-editor": "^0.55.1",
+                "monaco-editor-webpack-plugin": "^7.1.1",
+                "terser": "^5.44.1",
+                "typescript": "^5.9.3",
+                "vite": "^7.3.0",
+                "vite-plugin-monaco-editor": "^1.1.0"
+        },
+        "dependencies": {
+                "monaco-editor-core": "^0.55.1",
+                "monaco-languages": "^2.11.1"
+        }
 }

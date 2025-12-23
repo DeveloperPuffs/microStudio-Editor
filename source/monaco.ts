@@ -1,43 +1,35 @@
-import { editor as MonacoEditor } from "monaco-editor-core";
-import { registerLanguages } from "monaco-languages";
-
-import languages from "./languages.json?raw";
-
-self.MonacoEnvironment = {
-        getWorker(_, label) {
-                if (label === "json") {
-                        return new Worker(
-                                new URL("monaco-editor/esm/vs/language/json/json.worker", import.meta.url),
-                                { type: "module" }
-                        );
-                }
-
-                if (label === "javascript" || label === "typescript") {
-                        return new Worker(
-                                new URL("monaco-editor/esm/vs/language/typescript/ts.worker", import.meta.url),
-                                { type: "module" }
-                        );
-                }
-
-                if (label === "markdown") {
-                        return new Worker(
-                                new URL("monaco-editor/esm/vs/language/markdown/markdown.worker", import.meta.url),
-                                { type: "module" }
-                        );
-                }
-
-                return new Worker(
-                        new URL("monaco-editor/esm/vs/editor/editor.worker", import.meta.url),
-                        { type: "module" }
-                );
+declare global {
+        interface Window {
+                require: any;
+                monaco: typeof import("monaco-editor");
         }
-};
+}
 
-const languageList = JSON.parse(languages);
-registerLanguages(languageList);
+export const wrapper = document.createElement("div");
+wrapper.classList.add("monaco-wrapper");
 
-export const monacoWrapper = document.createElement("div");
-export const monacoInstance = MonacoEditor.create(monacoWrapper, {
-        automaticLayout: true,
-        theme: "vs-dark"
-});
+let instance: any | undefined;
+
+export function getInstance() {
+        return instance;
+}
+
+export async function setupMonaco() {
+        await new Promise((resolve, reject) => {
+                const script = document.createElement("script");
+                script.src = "https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js";
+                script.onload = resolve;
+                script.onerror = reject;
+                document.head.appendChild(script);
+        });
+
+        await new Promise((resolve, reject) => {
+                window.require.config({ paths: { vs: "https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs" } });
+                window.require(["vs/editor/editor.main"], resolve, reject);
+        });
+
+        instance = window.monaco.editor.create(wrapper, {
+                automaticLayout: true,
+                theme: "vs-dark"
+        });
+}

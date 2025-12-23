@@ -26,10 +26,10 @@
                         <span>Loading editor...</span>
                 </main>
                 <script type="module">
-                        import * as Editor from "/source/editor.js";
+                        import * as Editor from "/source/editor.ts";
                         const documentMain = document.querySelector("main");
                         documentMain.replaceChildren();
-                        Editor.setupEditor(documentMain);
+                        await Editor.setupEditor(documentMain);
                 </script>
         </body>
 </html>

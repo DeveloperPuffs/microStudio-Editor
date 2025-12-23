@@ -1,5 +1,6 @@
+import * as Monaco from "./monaco.ts";
 import * as Layout from "./layout.ts";
-import * as Files from "./files.js";
+import * as Files from "./files.ts";
 import * as Views from "./views.ts";
 
 import html from "./editor.html?raw";
@@ -7,12 +8,14 @@ import css from "./editor.css?inline";
 
 let editorSetup = false;
 
-export function setupEditor(container: HTMLElement) {
+export async function setupEditor(container: HTMLElement) {
         if (editorSetup) {
                 return;
         }
 
         editorSetup = true;
+
+        await Monaco.setupMonaco();
 
         const fontAwesomeScript = document.createElement("script");
         fontAwesomeScript.src = "https://kit.fontawesome.com/03b601dbb5.js";
