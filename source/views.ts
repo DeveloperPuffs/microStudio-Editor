@@ -37,7 +37,7 @@ export class CodeView extends BaseView {
         private model: any;
         private instance: any;
         private savedCode: string;
-        private saveEventListener: (event: KeyboardEvent) => void;
+        private saveEventListener: () => void;
 
         constructor(file: Files.FileNode) {
                 super(file);
@@ -80,13 +80,7 @@ export class CodeView extends BaseView {
                         this.file.setUnsaved(currentCode !== this.savedCode);
                 });
 
-                this.saveEventListener = (event: KeyboardEvent) => {
-                        const key = event.key ?? String.fromCharCode(event.keyCode);
-                        if ((event.ctrlKey || event.metaKey) && key.toLowerCase() === "s") {
-                                event.preventDefault();
-                                this.writeContent();
-                        }
-                };
+                this.saveEventListener = this.writeContent.bind(this);
 
                 this.file.saveCallback = async () => {
                         await this.writeContent();
@@ -147,12 +141,12 @@ export class CodeView extends BaseView {
                 this.wrapper.appendChild(Monaco.wrapper);
                 this.instance.setModel(this.model);
 
-                document.addEventListener("keydown", this.saveEventListener);
+                Monaco.registerEventListener(Monaco.MonacoEvent.SAVE_FILE, this.saveEventListener);
         }
 
         dismiss() {
                 super.dismiss();
-                document.removeEventListener("keydown", this.saveEventListener);
+                Monaco.removeEventListener(Monaco.MonacoEvent.SAVE_FILE, this.saveEventListener);
         }
 
         dispose() {

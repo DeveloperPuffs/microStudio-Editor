@@ -5,6 +5,44 @@ declare global {
         }
 }
 
+export enum MonacoEvent {
+        SAVE_FILE
+}
+
+const eventListenersMap = new Map<MonacoEvent, (() => void)[]>();
+
+export function registerEventListener(event: MonacoEvent, listener: () => void) {
+        const eventListeners = eventListenersMap.get(event) ?? [];
+        eventListeners.push(listener);
+
+        eventListenersMap.set(event, eventListeners);
+}
+
+export function removeEventListener(event: MonacoEvent, listener: () => void) {
+        const eventListeners = eventListenersMap.get(event);
+        if (eventListeners == undefined) {
+                return;
+        }
+
+        const index = eventListeners.indexOf(listener);
+        if (index === -1) {
+                return;
+        }
+
+        eventListeners.splice(index, 1);
+}
+
+function triggerEvent(event: MonacoEvent) {
+        const eventListeners = eventListenersMap.get(event);
+        if (eventListeners === undefined) {
+                return;
+        }
+
+        for (const eventListener of eventListeners) {
+                eventListener();
+        }
+}
+
 export const wrapper = document.createElement("div");
 wrapper.classList.add("monaco-wrapper");
 
@@ -31,5 +69,19 @@ export async function setupMonaco() {
         instance = window.monaco.editor.create(wrapper, {
                 automaticLayout: true,
                 theme: "vs-dark"
+        });
+
+        instance.addAction({
+                id: "save-file",
+                label: "Save File",
+                keybindings: [
+                        window.monaco.KeyMod.CtrlCmd |
+                        window.monaco.KeyCode.KeyS
+                ],
+                precondition: null,
+                keybindingContext: null,
+                contextMenuGroupId: "navigation",
+                contextMenuOrder: 1,
+                run: () => triggerEvent(MonacoEvent.SAVE_FILE)
         });
 }
