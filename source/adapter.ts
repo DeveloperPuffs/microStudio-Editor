@@ -1,5 +1,3 @@
-import * as Modal from "./modal.ts";
-
 // A file in the format microStudio gives
 type PluginFile = {
         // The name of the file without the extension
@@ -87,7 +85,8 @@ export class FileContext {
                 return new Promise<unknown>((resolve, reject) => {
                         const path = this.getPluginInterfacePath();
                         this.pluginInterface.readFile(path, (content, error) => {
-                                if (error !== undefined) {
+                                if (error) {
+                                        console.log(`Failed to read file content for "${path}": ${error}`);
                                         reject(error);
                                         return;
                                 }
@@ -106,11 +105,13 @@ export class FileContext {
                         };
 
                         this.pluginInterface.writeFile(path, content, options, (result, error) => {
-                                if (error !== undefined) {
+                                if (error) {
+                                        console.log(`Failed to write file content for "${path}": ${error}`);
                                         reject(error);
                                         return;
                                 }
 
+                                console.log(`Wrote file content for "${path}": ${error}`);
                                 resolve(result);
                         });
                 });

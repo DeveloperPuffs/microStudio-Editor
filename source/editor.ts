@@ -8,14 +8,7 @@ import * as Views from "./views.ts";
 import html from "./editor.html?raw";
 import css from "./editor.css?inline";
 
-let setupCalled = false;
 export async function setupEditor(container: HTMLElement, pluginInterface: Adaper.PluginInterface) {
-        if (setupCalled) {
-                return;
-        }
-
-        setupCalled = true;
-
         await Monaco.setupMonaco();
 
         const fontAwesomeScript = document.createElement("script");

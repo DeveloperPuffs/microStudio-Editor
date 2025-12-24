@@ -487,6 +487,7 @@ export class FileNode extends ElementNode {
         private tabIcon: HTMLDivElement;
         private tabLabel: HTMLSpanElement;
         private tabIndicator: HTMLDivElement;
+        saveCallback?: () => Promise<void>;
 
         constructor(context: Adapter.FileContext) {
                 switch (context.extension) {
@@ -558,7 +559,7 @@ export class FileNode extends ElementNode {
                                 const unsavedChangesModal = new Modal.Modal({
                                         title: "Unsaved Changes",
                                         body: `
-                                                Do you want to save changes you made to "${this.getName()}"?
+                                                Do you want to save changes you made to <code>${this.getName()}</code>?
                                                 Your changes will be lost if you close the file with unsaved changes.
                                         `,
                                         buttonOptions: [
@@ -585,7 +586,7 @@ export class FileNode extends ElementNode {
                                 }
 
                                 if (option === UnsavedFileCloseOption.SAVE) {
-                                        // TODO: save the file before closing
+                                        await this.saveCallback?.();
                                 }
                         }
 

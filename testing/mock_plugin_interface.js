@@ -30,6 +30,12 @@ export function add(a, b) {
 }
 `);
 
+addMockFile("source/script.ms", `
+init = function()
+        print("Hello from microScript");
+end
+`);
+
 addMockFile(
         "assets/config.json",
         JSON.stringify({ version: 1 }, null, 2)
