@@ -1,12 +1,15 @@
 import * as Files from "./files.ts";
+import * as Adapter from "./adapter.ts";
 import * as Monaco from "./monaco.ts";
 
 abstract class BaseView {
         protected file: Files.FileNode;
+        protected context: Adapter.FileContext;
         protected wrapper: HTMLDivElement;
 
         constructor(file: Files.FileNode) {
                 this.file = file;
+                this.context = file.getContext();
 
                 this.wrapper = document.createElement("div");
                 this.wrapper.classList.add("view-wrapper");
@@ -35,11 +38,13 @@ export class CodeView extends BaseView {
         constructor(file: Files.FileNode) {
                 super(file);
 
+                let source = `"Unknown File Contents"`;
+                if (this.context instanceof Adapter.SourceFileContext) {
+                        source = this.context.getSource();
+                }
+
                 this.instance = Monaco.getInstance();
-                this.model = window.monaco.editor.createModel(
-                        `console.log("Hello, world!")`,
-                        "javascript"
-                );
+                this.model = window.monaco.editor.createModel(source, "javascript");
         }
 
         present() {

@@ -19,12 +19,13 @@ type FileWriteOptions = {
         ext: string;
 };
 
+// TODO: I could investigate a bit to find out the type of the 'result' from writing or deleting files
+type FileOperationResult = unknown;
+
 type ListFilesCallback = (list: PluginFile[], error?: string) => void;
 type ReadFileCallback = (content: unknown, error?: string) => void;
-
-// TODO: I could investigate a bit to see what type 'result' is
-type WriteFileCallback = (result: unknown, error?: string) => void;
-type DeleteFileCallback = (result: unknown, error?: string) => void;
+type WriteFileCallback = (result: FileOperationResult, error?: string) => void;
+type DeleteFileCallback = (result: FileOperationResult, error?: string) => void;
 
 // The equivalent to system.project, which is used to access and modify project files
 export interface PluginInterface {
@@ -43,16 +44,12 @@ export const roots = Object.freeze([
         "assets"
 ] as const);
 
-// A more useful representation of a file which can be parsed from 'PluginFile's and serialized
-// this.content (which is a string), serialize() and deserialize() are used by source files
-// loadContent() is used by other files to load content lazily
-export class FileData {
-        private path: string;
-        private data: string | PluginInterface;
+// A more useful representation of a file based off of a full path
+export abstract class FileContext {
+        protected path: string;
 
-        constructor(path: string, data: string | PluginInterface) {
+        constructor(path: string) {
                 this.path = path;
-                this.data = data;
         }
 
         get folders(): string[] {
@@ -78,31 +75,27 @@ export class FileData {
                 const nameParts = this.fullName.split(".");
                 return nameParts[nameParts.length - 1];
         }
+}
 
-        async loadContent() {
-                return new Promise<unknown>((resolve, reject) => {
-                        const path = `${this.folders.join("/")}/${this.baseName}`;
-                        (this.data as PluginInterface).readFile(path, (content, error) => {
-                                if (error !== undefined) {
-                                        reject(error);
-                                        return;
-                                }
+// This type of file is stored by serializing them into JSON
+export class SourceFileContext extends FileContext {
+        private source: string;
 
-                                resolve(content);
-                        });
-                });
+        constructor(path: string, source: string) {
+                super(path);
+                this.source = source;
         }
 
+        getSource() {
+                return this.source;
+        }
+        
         serialize(): string {
-                return JSON.stringify({
-                        path: this.path,
-                        // Assume this.data is a string because only source
-                        // files are serialized and stored as JSON data
-                        content: this.data as string
-                }, null, 2); // Use two space tabs to save space
+                // Use two space tabs to save space
+                return JSON.stringify({path: this.path, content: this.source}, null, 2); 
         }
 
-        static deserialize(input: string): FileData | undefined {
+        static deserialize(input: string): SourceFileContext | undefined {
                 let data: unknown;
 
                 try {
@@ -127,7 +120,54 @@ export class FileData {
                         return undefined;
                 }
 
-                return new FileData(dataRecord.path, dataRecord.content);
+                return new SourceFileContext(dataRecord.path, dataRecord.content);
+        }
+}
+
+// This type of file has content loaded lazily and saved using the plugin interface
+export class ExternalFileContext extends FileContext {
+        private pluginInterface: PluginInterface;
+
+        constructor(path: string, pluginInterface: PluginInterface) {
+                super(path);
+                this.pluginInterface = pluginInterface;
+        }
+
+        private getPluginInterfacePath() {
+                return `${this.folders.join("/")}/${this.baseName}`;
+        }
+
+        async readContent() {
+                return new Promise<unknown>((resolve, reject) => {
+                        const path = this.getPluginInterfacePath();
+                        this.pluginInterface.readFile(path, (content, error) => {
+                                if (error !== undefined) {
+                                        reject(error);
+                                        return;
+                                }
+
+                                resolve(content);
+                        });
+                });
+        }
+
+        async writeContent(content: unknown) {
+                return new Promise<FileOperationResult>((resolve, reject) => {
+                        const path = this.getPluginInterfacePath();
+                        const options: FileWriteOptions = {
+                                replace: "true",
+                                ext: this.extension
+                        };
+
+                        this.pluginInterface.writeFile(path, content, options, (result, error) => {
+                                if (error !== undefined) {
+                                        reject(error);
+                                        return;
+                                }
+
+                                resolve(result);
+                        });
+                });
         }
 }
 
@@ -148,13 +188,13 @@ export async function loadFiles(pluginInterface: PluginInterface) {
 
         const pendingSourceDeletions: string[] = [];
 
-        const fileDataList = await Promise.all<FileData>(pluginFiles.flat().map(pluginFile => {
+        const fileContextList = await Promise.all<FileContext>(pluginFiles.flat().map(pluginFile => {
                 const fullPath = `${pluginFile.path}.${pluginFile.ext}`;
 
-                return new Promise<FileData>((resolve, reject) => {
+                return new Promise<FileContext>((resolve, reject) => {
                         if (pluginFile.path.split("/")[0] !== "source") {
-                                const fileData = new FileData(fullPath, pluginInterface);
-                                resolve(fileData);
+                                const fileContext = new ExternalFileContext(fullPath, pluginInterface);
+                                resolve(fileContext);
                                 return;
                         }
 
@@ -167,14 +207,14 @@ export async function loadFiles(pluginInterface: PluginInterface) {
 
                                 pendingSourceDeletions.push(pluginFile.path);
 
-                                const fileData = new FileData(fullPath, content as string);
-                                resolve(fileData);
+                                const fileContext = new SourceFileContext(fullPath, content as string);
+                                resolve(fileContext);
                         });
                 });
         }));
 
         if (pendingSourceDeletions.length === 0) {
-                return fileDataList;
+                return fileContextList;
         }
 
         const warningModal = new Modal.Modal({
@@ -205,5 +245,5 @@ export async function loadFiles(pluginInterface: PluginInterface) {
                 });
         }))
 
-        return fileDataList;
+        return fileContextList;
 }

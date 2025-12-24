@@ -1,4 +1,5 @@
 import * as Modal from "./modal.ts";
+import * as Adapter from "./adapter.ts";
 
 declare global {
         interface HTMLElement {
@@ -473,50 +474,51 @@ export abstract class ElementNode extends BaseNode {
 };
 
 export class FileNode extends ElementNode {
+        private context: Adapter.FileContext;
         private tab: HTMLLIElement;
         private tabIcon: HTMLDivElement;
         private tabLabel: HTMLSpanElement;
         private tabClose: HTMLDivElement;
 
-        constructor(name: string) {
-                const { extension } = getFilenameInformation(name);
-
-                switch (extension) {
-                        case ".js": case ".ms": {
-                                super(name, `<i class="fa-solid fa-file-code"></i>`);
+        constructor(context: Adapter.FileContext) {
+                switch (context.extension) {
+                        case "ms": case "js": case "py": case "lua": {
+                                super(context.fullName, `<i class="fa-solid fa-file-code"></i>`);
                                 break;
                         }
 
-                        case ".png": case ".jpg": case ".jpeg": {
-                                super(name, `<i class="fa-solid fa-file-image"></i>`);
+                        case "png": case "jpg": case "jpeg": {
+                                super(context.fullName, `<i class="fa-solid fa-file-image"></i>`);
                                 break;
                         }
 
-                        case ".map": {
-                                super(name, `<i class="fa-regular fa-map"></i>`);
+                        case "map": {
+                                super(context.fullName, `<i class="fa-regular fa-map"></i>`);
                                 break;
                         }
 
-                        case ".wav": {
-                                super(name, `<i class="fa-solid fa-file-audio"></i>`);
+                        case "wav": {
+                                super(context.fullName, `<i class="fa-solid fa-file-audio"></i>`);
                                 break;
                         }
 
-                        case ".mp3": {
-                                super(name, `<i class="fa-solid fa-music"></i>`);
+                        case "mp3": {
+                                super(context.fullName, `<i class="fa-solid fa-music"></i>`);
                                 break;
                         }
 
-                        case ".md": case ".json": case ".txt": {
-                                super(name, `<i class="fa-solid fa-file"></i>`);
+                        case "md": case "json": case "txt": {
+                                super(context.fullName, `<i class="fa-solid fa-file"></i>`);
                                 break;
                         }
 
                         default: {
-                                super(name, `<i class="fa-solid fa-question"></i>`);
+                                super(context.fullName, `<i class="fa-solid fa-question"></i>`);
                                 break;
                         }
                 }
+
+                this.context = context;
 
                 this.tab = document.createElement("li");
                 this.tab.setAttribute("draggable", "true");
@@ -528,7 +530,7 @@ export class FileNode extends ElementNode {
 
                 this.tabLabel = document.createElement("span");
                 this.tabLabel.classList.add("label");
-                this.tabLabel.textContent = name;
+                this.tabLabel.textContent = context.fullName;
                 this.tab.appendChild(this.tabLabel);
 
                 this.tabClose = document.createElement("div");
@@ -546,6 +548,10 @@ export class FileNode extends ElementNode {
                         this.tab.remove();
                         closeFile(this);
                 });
+        }
+
+        getContext() {
+                return this.context;
         }
 
         setName(name: string) {

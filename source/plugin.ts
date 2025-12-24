@@ -13,7 +13,7 @@ export async function initialize(pluginInterface: Adaper.PluginInterface) {
         // Maps the full paths of folders to their corresponding nodes\
         const folderIndex = new Map<string, Files.FolderNode>();
 
-        function ensureFolderExistence(file: Adaper.FileData): Files.FolderNode | undefined {
+        function ensureFolderExistence(file: Adaper.FileContext): Files.FolderNode | undefined {
                 let currentPath = "";
                 let parent: Files.FolderNode | undefined;
 
@@ -43,7 +43,7 @@ export async function initialize(pluginInterface: Adaper.PluginInterface) {
                         continue;
                 }
 
-                const fileNode = new Files.FileNode(file.fullName);
+                const fileNode = new Files.FileNode(file);
                 parentFolder.addChild(fileNode);
         }
 }
