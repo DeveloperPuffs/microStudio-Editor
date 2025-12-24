@@ -458,7 +458,7 @@ export abstract class ElementNode extends BaseNode {
                                 },
                                 {
                                         label: "Delete",
-                                        backgroundColor: "var(--dark-invalid-color)",
+                                        destructive: true,
                                         value: true
                                 },
                         ]
@@ -473,12 +473,20 @@ export abstract class ElementNode extends BaseNode {
         }
 };
 
+enum UnsavedFileCloseOption {
+        CANCEL,
+        SAVE,
+        CLOSE
+}
 export class FileNode extends ElementNode {
+        private static readonly CLOSE_INDICATOR = `<i class="fa-solid fa-xmark"></i>`;
+        private static readonly UNSAVED_INDICATOR = `<i class="fa-solid fa-asterisk"></i>`;
+
         private context: Adapter.FileContext;
         private tab: HTMLLIElement;
         private tabIcon: HTMLDivElement;
         private tabLabel: HTMLSpanElement;
-        private tabClose: HTMLDivElement;
+        private tabIndicator: HTMLDivElement;
 
         constructor(context: Adapter.FileContext) {
                 switch (context.extension) {
@@ -533,21 +541,64 @@ export class FileNode extends ElementNode {
                 this.tabLabel.textContent = context.fullName;
                 this.tab.appendChild(this.tabLabel);
 
-                this.tabClose = document.createElement("div");
-                this.tabClose.classList.add("close");
-                this.tabClose.innerHTML = `<i class="fa-solid fa-xmark"></i>`;
-                this.tab.appendChild(this.tabClose);
+                this.tabIndicator = document.createElement("div");
+                this.tabIndicator.classList.add("indicator");
+                this.tabIndicator.innerHTML = FileNode.CLOSE_INDICATOR;
+                this.tab.appendChild(this.tabIndicator);
 
                 this.tab.addEventListener("click", event => {
                         event.stopPropagation();
                         selectFile(this);
                 });
 
-                this.tabClose.addEventListener("click", event => {
+                this.tabIndicator.addEventListener("click", async event => {
                         event.stopPropagation();
+
+                        if (this.tab.classList.contains("unsaved")) {
+                                const unsavedChangesModal = new Modal.Modal({
+                                        title: "Unsaved Changes",
+                                        body: `
+                                                Do you want to save changes you made to "${this.getName()}"?
+                                                Your changes will be lost if you close the file with unsaved changes.
+                                        `,
+                                        buttonOptions: [
+                                                {
+                                                        label: "Cancel",
+                                                        value: UnsavedFileCloseOption.CANCEL
+                                                },
+                                                {
+                                                        label: "Save",
+                                                        value: UnsavedFileCloseOption.SAVE
+                                                },
+                                                {
+                                                        label: "Don't Save",
+                                                        destructive: true,
+                                                        value: UnsavedFileCloseOption.CLOSE
+                                                }
+                                        ]
+                                });
+
+                                const option = await unsavedChangesModal.prompt();
+
+                                if (option === UnsavedFileCloseOption.CANCEL) {
+                                        return;
+                                }
+
+                                if (option === UnsavedFileCloseOption.SAVE) {
+                                        // TODO: save the file before closing
+                                }
+                        }
+
                         this.tab.remove();
                         closeFile(this);
                 });
+        }
+
+        setUnsaved(unsaved: boolean) {
+                this.tab.classList.toggle("unsaved", unsaved);
+                this.tabIndicator.innerHTML = unsaved
+                        ? FileNode.UNSAVED_INDICATOR
+                        : FileNode.CLOSE_INDICATOR;
         }
 
         getContext() {
@@ -963,7 +1014,7 @@ class FileDrag {
                                                         },
                                                         {
                                                                 label: "Replace",
-                                                                backgroundColor: "var(--dark-invalid-color)",
+                                                                destructive: true,
                                                                 value: NameClashDropOption.REPLACE
                                                         }
                                                 ]

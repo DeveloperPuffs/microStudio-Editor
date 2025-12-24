@@ -62,7 +62,7 @@ export const MockPluginInterface = Object.freeze({
 
         writeFile(path, content, options, callback) {
                 const ext = options.ext || "txt";
-                const key = `${path}.${ext};`
+                const key = `${path}.${ext}`;
 
                 if (options.replace === "false" && fileStore.has(key)) {
                         queueMicrotask(() => callback(undefined, "File already exists"));
@@ -70,7 +70,6 @@ export const MockPluginInterface = Object.freeze({
                 }
 
                 fileStore.set(key, {path, ext, content});
-
                 queueMicrotask(() => callback(content));
         },
 

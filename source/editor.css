@@ -318,19 +318,31 @@
         flex: 1;
 }
 
-.tab .close {
+.tab .indicator {
         opacity: 0;
 }
 
-.tab:hover:not(.dragging) .close {
+.tab:hover:not(.dragging) .indicator {
         opacity: var(--opacity-3);
 }
 
-.tab:hover:not(.dragging) .close:hover {
+.tab:hover:not(.dragging) .indicator:hover {
         opacity: var(--opacity-1);
 }
 
-.tab.selected:not(.dragging) .close {
+.tab.selected:not(.dragging) .indicator {
+        opacity: var(--opacity-1);
+}
+
+.tab.unsaved:not(.selected) .indicator {
+        opacity: var(--opacity-3);
+}
+
+.tab.unsaved.selected .indicator {
+        opacity: var(--opacity-1);
+}
+
+.tab.unsaved.hover .indicator {
         opacity: var(--opacity-1);
 }
 

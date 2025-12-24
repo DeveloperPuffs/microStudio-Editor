@@ -1,8 +1,7 @@
 export type ButtonOptions = {
         label: string;
         value?: unknown;
-        foregroundColor?: string;
-        backgroundColor?: string;
+        destructive?: boolean;
 };
 
 export type DialogOptions = {
@@ -67,8 +66,10 @@ export class Modal {
                 for (const buttonOption of buttonOptions) {
                         const button = document.createElement("button");
                         button.textContent = buttonOption.label;
-                        button.style.color = buttonOption.foregroundColor ?? "var(foreground-color-1)";
-                        button.style.backgroundColor = buttonOption.backgroundColor ?? "var(--background-color-2)";
+                        button.style.color = "var(foreground-color-1)";
+                        button.style.backgroundColor = buttonOption.destructive
+                                ? "var(--dark-invalid-color)"
+                                : "var(--background-color-2)";
 
                         button.addEventListener("click", () => {
                                 this.close(buttonOption.value);
