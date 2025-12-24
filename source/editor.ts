@@ -1,3 +1,5 @@
+import * as Plugin from "./plugin.ts";
+import * as Adaper from "./adapter.ts";
 import * as Monaco from "./monaco.ts";
 import * as Layout from "./layout.ts";
 import * as Files from "./files.ts";
@@ -6,14 +8,13 @@ import * as Views from "./views.ts";
 import html from "./editor.html?raw";
 import css from "./editor.css?inline";
 
-let editorSetup = false;
-
-export async function setupEditor(container: HTMLElement) {
-        if (editorSetup) {
+let setupCalled = false;
+export async function setupEditor(container: HTMLElement, pluginInterface: Adaper.PluginInterface) {
+        if (setupCalled) {
                 return;
         }
 
-        editorSetup = true;
+        setupCalled = true;
 
         await Monaco.setupMonaco();
 
@@ -30,7 +31,8 @@ export async function setupEditor(container: HTMLElement) {
 
         container.innerHTML = html;
 
-        Layout.setupEditorLayout();
+        Layout.initialize();
+        Files.initialize();
 
         const fileViews = new Map<Files.FileNode, Views.View>();
         let currentView: Views.View | undefined;
@@ -70,26 +72,5 @@ export async function setupEditor(container: HTMLElement) {
                 view.dispose();
         });
 
-        const rootNode = new Files.RootNode();
-
-        const fileA = new Files.FileNode("File A.js");
-        const fileB = new Files.FileNode("File B.js");
-        const fileC = new Files.FileNode("File C.js");
-        const fileD = new Files.FileNode("File D.js");
-        const fileE = new Files.FileNode("File E.js");
-        const fileF = new Files.FileNode("File F.js");
-
-        const folder1 = new Files.FolderNode("Folder 1");
-        const folder2 = new Files.FolderNode("Folder 1");
-
-        rootNode.addChild(fileA);
-        rootNode.addChild(fileB);
-        rootNode.addChild(folder1);
-        rootNode.addChild(fileE);
-        rootNode.addChild(fileF);
-
-        folder1.addChild(fileC);
-        folder1.addChild(folder2);
-
-        folder2.addChild(fileD);
+        await Plugin.initialize(pluginInterface);
 };

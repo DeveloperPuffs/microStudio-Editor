@@ -1,4 +1,4 @@
-import { Modal } from "./modal.ts";
+import * as Modal from "./modal.ts";
 
 declare global {
         interface HTMLElement {
@@ -6,7 +6,7 @@ declare global {
         }
 }
 
-abstract class BaseNode {
+export abstract class BaseNode {
         protected parent?: ContainerNode;
 
         getParent() {
@@ -57,7 +57,7 @@ abstract class BaseNode {
         }
 }
 
-abstract class ContainerNode extends BaseNode {
+export abstract class ContainerNode extends BaseNode {
         private children: BaseNode[] = [];
 
         // FolderNode needs to call this because it inherits
@@ -190,7 +190,7 @@ export class RootNode extends ContainerNode {
         }
 }
 
-abstract class ElementNode extends BaseNode {
+export abstract class ElementNode extends BaseNode {
         private element: HTMLLIElement;
         private icon: HTMLDivElement;
         private label: HTMLSpanElement;
@@ -289,7 +289,7 @@ abstract class ElementNode extends BaseNode {
                         }
 
                         if (currentParent instanceof RootNode) {
-                                this.element.style.paddingLeft = `${16 + nestedDepth * 24}px`;
+                                this.element.style.paddingLeft = `${16 + nestedDepth * 16}px`;
                                 break;
                         }
 
@@ -444,7 +444,7 @@ abstract class ElementNode extends BaseNode {
                         return true;
                 }
 
-                const deleteConfirmation = new Modal({
+                const deleteConfirmation = new Modal.Modal({
                         title: "Delete Item",
                         body: `
                                 Are you sure you want to delete <code>${this.getName()}</code>
@@ -507,7 +507,7 @@ export class FileNode extends ElementNode {
                                 break;
                         }
 
-                        case ".md": {
+                        case ".md": case ".json": case ".txt": {
                                 super(name, `<i class="fa-solid fa-file"></i>`);
                                 break;
                         }
@@ -943,7 +943,7 @@ class FileDrag {
                                 }
 
                                 if (futureSibling.getName() === draggedName) {
-                                        const nameClashModal = new Modal({
+                                        const nameClashModal = new Modal.Modal({
                                                 title: "Cannot Move Item",
                                                 body: `An item in this folder already has the name <code>${draggedName}</code>.`,
                                                 buttonOptions: [
@@ -1250,46 +1250,55 @@ function closeFile(file: FileNode) {
         }
 }
 
+let rootNode: RootNode | undefined;
 let currentDrag: FileDrag | TabDrag | undefined;
 
-document.addEventListener("dragstart", event => {
-        if (currentDrag !== undefined || !(event.target instanceof Element)) {
-                return;
-        }
+export function getRootNode() {
+        return rootNode;
+}
 
-        const draggedFile = event.target.closest(".file:not(.hidden):not(.dragging):not(.renaming)");
-        const draggedTab = event.target.closest(".tab:not(.dragging)");
-        if ((draggedFile === null) === (draggedTab === null)) {
-                return;
-        }
+export function initialize() {
+        rootNode = new RootNode();
 
-        const onFinish = () => {
-                currentDrag = undefined;
-        }
+        document.addEventListener("dragstart", event => {
+                if (currentDrag !== undefined || !(event.target instanceof Element)) {
+                        return;
+                }
 
-        if (draggedFile !== null) {
-                currentDrag = new FileDrag(draggedFile as HTMLDivElement, onFinish);
-        }
+                const draggedFile = event.target.closest(".file:not(.hidden):not(.dragging):not(.renaming)");
+                const draggedTab = event.target.closest(".tab:not(.dragging)");
+                if ((draggedFile === null) === (draggedTab === null)) {
+                        return;
+                }
 
-        if (draggedTab !== null) {
-                currentDrag = new FileDrag(draggedTab as HTMLDivElement, onFinish);
-        }
+                if (draggedFile !== null) {
+                        currentDrag = new FileDrag(draggedFile as HTMLDivElement, () => {
+                                currentDrag = undefined;
+                        });
+                }
 
-        currentDrag!.dragStart(event);
-});
+                if (draggedTab !== null) {
+                        currentDrag = new FileDrag(draggedTab as HTMLDivElement, () => {
+                                currentDrag = undefined;
+                        });
+                }
 
-document.addEventListener("dragend", event => {
-        currentDrag?.dragEnd(event);
-});
+                currentDrag!.dragStart(event);
+        });
 
-document.addEventListener("dragover", event => {
-        currentDrag?.dragOver(event);
-});
+        document.addEventListener("dragend", event => {
+                currentDrag?.dragEnd(event);
+        });
 
-document.addEventListener("dragleave", event => {
-        currentDrag?.dragLeave(event);
-});
+        document.addEventListener("dragover", event => {
+                currentDrag?.dragOver(event);
+        });
 
-document.addEventListener("drop", event => {
-        currentDrag?.drop(event);
-});
+        document.addEventListener("dragleave", event => {
+                currentDrag?.dragLeave(event);
+        });
+
+        document.addEventListener("drop", event => {
+                currentDrag?.drop(event);
+        });
+}

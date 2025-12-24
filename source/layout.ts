@@ -164,7 +164,7 @@ document.addEventListener("mouseup", () => {
         document.body.style.cursor = "";
 });
 
-export function setupEditorLayout() {
+export function initialize() {
         const leftContainer = document.querySelector<HTMLDivElement>("#left-container")!;
         leftContainer.style.left = "0";
         leftContainer.style.top = "var(--bar-size)";
