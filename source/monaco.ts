@@ -5,6 +5,8 @@ declare global {
         }
 }
 
+export {};
+
 export enum MonacoEvent {
         SAVE_FILE
 }
@@ -143,4 +145,195 @@ export async function setupMonaco() {
         });
 
         window.monaco.editor.setTheme("tomorrow-night-bright");
+
+        // Nice: https://github.com/pmgl/microstudio/blob/a3bbdfe38c44928237d47f28be28a77a6cddf30b/static/lib/ace/mode-microscript.js
+        window.monaco.languages.register({id: "microscript"});
+
+        const INDENT_REGEX = /function\s*\(.*\)\s*$|^\s*(if|while|for|object|class|then)\b.*$/;
+        const DEDENT_REGEX = /^\s*end\b/;
+
+        window.monaco.languages.setMonarchTokensProvider("microscript", {
+                tokenizer: {
+                        root: [
+                                [
+                                        /\/\/.*/,
+                                        "comment"
+                                ],
+                                [
+                                        /\/\*/,
+                                        {
+                                                token: "comment",
+                                                next: "@commentBlock"
+                                        }
+                                ],
+                                [
+                                        /".*?"|'[^']*'/,
+                                        "string"
+                                ],
+                                [
+                                        /\b(continue|break|else|elsif|end|for|by|function|if|in|to|local|return|then|while|or|and|not|object|class|extends|new|this|super|global)\b/,
+                                        "keyword"
+                                ],
+                                [
+                                        /\b(true|false)\b/,
+                                        "type"
+                                ],
+                                [
+                                        /\b(print|time|type|log|max|PI|pow|random|ceil|round|floor|abs|sqrt|min|exp|sin|atan|concat|sort|cos|tan|acos|asin|atan2|sind|cosd|tand|acosd|asind|atand|atan2d)\b/,
+                                        "function"
+                                ],
+                                [
+                                        /\b(screen|system|audio|gamepad|keyboard|touch|mouse)\b/,
+                                        "variable"
+                                ],
+                                [
+                                        /\+|\-|\*|\/|%|\^|<|>|<=|>=|==|=/,
+                                        "operator"
+                                ],
+                                [
+                                        /\d+(\.\d+)?/,
+                                        "number"
+                                ]
+                        ],
+                        commentBlock: [
+                                [
+                                        /\*\//,
+                                        {
+                                                token: "comment",
+                                                next: "@pop"
+                                        }
+                                ],
+                                [
+                                        /./,
+                                        "comment"
+                                ]
+                        ]
+                }
+        });
+        
+        const pairs = [
+                { open: "{", close: "}" },
+                { open: "[", close: "]" },
+                { open: "(", close: ")" },
+                { open: "\"", close: "\"" },
+                { open: "'", close: "'" },
+                { open: "/*", close: "*/" }
+        ];
+
+        window.monaco.languages.setLanguageConfiguration("microscript", {
+                autoClosingPairs: pairs,
+                surroundingPairs: pairs,
+                comments: {
+                        lineComment: "//",
+                        blockComment: ["/*", "*/"]
+                },
+                brackets: [
+                        ["{", "}"],
+                        ["[", "]"],
+                        ["(", ")"]
+                ]
+        });
+
+        // TODO: The indent and dedent logic below only tests line by line
+        // Lines with multiple indents or dedents only count as one.
+        // This might need to be fixed later.
+
+        // This custom folding behavior folds until the matching 'end' line
+        window.monaco.languages.registerFoldingRangeProvider("microscript", {
+                provideFoldingRanges(model, _context, _token) {
+                        const ranges = [];
+                        const indentStack: number[] = [];
+
+                        for (let lineIndex = 1; lineIndex <= model.getLineCount(); ++lineIndex) {
+                                const lineText = model.getLineContent(lineIndex).trim();
+
+                                if (lineText === "") {
+                                        continue;
+                                }
+
+                                if (INDENT_REGEX.test(lineText)) {
+                                        indentStack.push(lineIndex);
+                                        continue;
+                                }
+
+                                if (DEDENT_REGEX.test(lineText) && indentStack.length > 0) {
+                                        const startLine = indentStack.pop();
+                                        if (startLine !== undefined) {
+                                                ranges.push({
+                                                        start: startLine,
+                                                        end: lineIndex - 1,
+                                                        kind: window.monaco.languages.FoldingRangeKind.Region
+                                                });
+                                        }
+                                }
+                        }
+
+                        return ranges;
+                }
+        });
+
+        // Logic for indenting and adding indents and 'end' lines
+        instance.addCommand(window.monaco.KeyCode.Enter, function() {
+                const model = instance.getModel();
+                if (!model || model.getLanguageId() !== "microscript") {
+                        instance.trigger("keyboard", "type", { text: "\n" });
+                        return;
+                }
+                
+                // TODO: This behavior should probably also be disabled inside comments,
+                // but I tried and idk how I would be able to easily do that.
+
+                const position = instance.getPosition();
+                const lineText = model.getLineContent(position.lineNumber);
+                if (position.column <= lineText.trimEnd().length ||!INDENT_REGEX.test(lineText.trim())) {
+                        instance.trigger("keyboard", "type", { text: "\n" });
+                        return;
+                }
+                
+                let indentDepth = 0;
+                let endTokenFound = false;
+                for (let lineIndex = 1; lineIndex <= model.getLineCount(); ++lineIndex) {
+                        if (lineIndex === position.lineNumber) {
+                                continue;
+                        }
+
+                        const lineText = model.getLineContent(lineIndex).trim();
+                        if (lineText === "") {
+                                continue;
+                        }
+
+                        if (INDENT_REGEX.test(lineText)) {
+                                ++indentDepth;
+                                continue;
+                        }
+                        
+                        if (DEDENT_REGEX.test(lineText)) {
+                                if (indentDepth === 0) {
+                                        endTokenFound = true;
+                                        break;
+                                }
+
+                                --indentDepth;
+                                continue;
+                        }
+                }
+
+                const indentMatch = lineText.match(/^\s*/);
+                const indent = indentMatch ? indentMatch[0] + "\t" : "\t";
+                const parentIndent = indentMatch ? indentMatch[0] : "";
+                const insertedText = endTokenFound ? `\n${indent}` : `\n${indent}\n${parentIndent}end`;
+
+                instance.executeEdits("auto-end", [{
+                        range: new window.monaco.Range(position.lineNumber, lineText.length + 1, position.lineNumber, lineText.length + 1),
+                        text: insertedText
+                }]);
+                
+                const caretPosition = Object.freeze({
+                        lineNumber: position.lineNumber + 1,
+                        column: indent.length + 1
+                } as const);
+
+                instance.setPosition(caretPosition);
+                instance.revealPosition(caretPosition);
+        });
 }
