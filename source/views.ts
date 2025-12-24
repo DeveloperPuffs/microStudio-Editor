@@ -116,8 +116,8 @@ export class CodeView extends BaseView {
                                         Your project/game will still run using the latest saved code, but
                                         the microStudio code editor might not reflect these changes yet.
                                         <br><br>
-                                        If you want to edit or view the updated code in the microStudio
-                                        editor, please save all files and refresh the page.
+                                        If you want to edit or view the updated code in the microStudio editor,
+                                        please save all files and reopen the project or refresh the page.
                                 `,
                                 buttonOptions: [
                                         { label: "Ok" }

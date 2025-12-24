@@ -84,4 +84,63 @@ export async function setupMonaco() {
                 contextMenuOrder: 1,
                 run: () => triggerEvent(MonacoEvent.SAVE_FILE)
         });
+
+        // A theme similar to the Ace editor theme microStudio uses
+        window.monaco.editor.defineTheme("tomorrow-night-bright", {
+                base: "vs-dark",
+                inherit: true,
+                rules: [
+                        {
+                                token: "keyword",
+                                foreground: "#C397D8"
+                        },
+                        {
+                                token: "operator",
+                                foreground: "#70C0B1"
+                        },
+                        {
+                                token: "number",
+                                foreground: "E78C45"
+                        },
+                        {
+                                token: "constant",
+                                foreground: "E78C45"
+                        },
+                        {
+                                token: "function",
+                                foreground: "7AA6DA"
+                        },
+                        {
+                                token: "variable",
+                                foreground: "D54E53"
+                        },
+                        {
+                                token: "type",
+                                foreground: "E7C547"
+                        },
+                        {
+                                token: "string",
+                                foreground: "B9CA4A"
+                        },
+                        {
+                                token: "comment",
+                                foreground: "969896"
+                        }
+                ],
+                colors: {
+                        "editor.background": "#000000",
+                        "editor.foreground": "#DEDEDE",
+                        "editorCursor.foreground": "#9F9F9F",
+                        "editor.selectionBackground": "#424242",
+                        "editor.inactiveSelectionBackground": "#424242",
+                        "editor.lineHighlightBackground": "#2A2A2A",
+                        "editorLineNumber.activeForeground": "#DEDEDE",
+                        "editorBracketMatch.border": "#888888",
+                        "editor.foldBackground": "#7AA6DA33",
+                        "editorIndentGuide.background": "#343434",
+                        "editorIndentGuide.activeBackground": "#4A4A4A"
+                }
+        });
+
+        window.monaco.editor.setTheme("tomorrow-night-bright");
 }
