@@ -4,12 +4,14 @@
         --opacity-1: 0.87;
         --opacity-2: 0.60;
         --opacity-3: 0.38;
-        --background-color-1: #141f25;
+        --background-color-1: #141F25;
         --background-color-2: #375464;
         /* A color between background color 1 and background color 2 */
         --interaction-color: #263A45;
-        --dark-invalid-color: #ce2317;
-        --light-invalid-color: #db6464;
+        --dark-destructive-color: #CE2317;
+        --light-destructive-color: #DB6464;
+        --dark-disabled-color: #6C757D;
+        --dark-prominent-color: #28aA45;
         --foreground-color-1: rgba(255, 255, 255, var(--opacity-1));
         --foreground-color-2: rgba(255, 255, 255, var(--opacity-2));
         --foreground-color-3: rgba(255, 255, 255, var(--opacity-3));
@@ -30,7 +32,7 @@
 }
 
 .editor * {
-        box-sizing: border-box;
+        box-sizing: border-box !important;
         padding: 0;
         margin: 0;
 }
@@ -239,12 +241,12 @@
         left: 0;
         right: 0;
         background: var(--background-color-1);
-        border: 1px solid var(--light-invalid-color);
+        border: 1px solid var(--light-destructive-color);
         overflow-wrap: break-word;
         border-radius: 4px;
         padding: 8px;
         font-size: x-small;
-        color: var(--light-invalid-color);
+        color: var(--light-destructive-color);
         z-index: 10;
 }
 
@@ -365,6 +367,55 @@
         height: 100%;
         overflow: hidden;
         position: relative;
+}
+
+.preview-toolbar {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        padding-left: 24px;
+        padding-right: 24px;
+}
+
+.preview-toolbar .left-controls {
+        height: 100%;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+}
+
+.preview-toolbar .right-controls {
+        height: 100%;
+        margin-left: auto;
+        align-items: center;
+        display: flex;
+        gap: 12px;
+}
+
+.preview-toolbar button, .preview-toolbar a {
+        width: 24px;
+        height: 24px;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 6px;
+        cursor: pointer;
+        text-align: center;
+        color: var(--foreground-color-1);
+        background-color: var(--background-color-2);
+        border-radius: 2px;
+        outline: none;
+        border: none;
+}
+
+.preview {
+        width: 100%;
+        height: 100%;
+        border: none;
+        outline: none;
+        background-color: black;
 }
 
 .monaco-wrapper {

@@ -1,34 +1,83 @@
 <div id="editor" class="editor">
         <div id="left-panel" class="vertical-panel right-border">
-                <div id="left-top-bar" class="horizontal-bar bottom-border"></div>
+                <div id="left-top-bar" class="horizontal-bar bottom-border">
+                </div>
                 <div id="left-container" class="container">
                         <div id="file-tree" class="file-tree">
-                                <ul id="file-list" class="file-list"></ul>
-                                <div id="file-error" class="file-error"></div>
-                                <div id="file-drop-line" class="file-drop-line"></div>
+                                <ul id="file-list" class="file-list">
+                                </ul>
+                                <div id="file-error" class="file-error">
+                                </div>
+                                <div id="file-drop-line" class="file-drop-line">
+                                </div>
                         </div>
                 </div>
         </div>
-        <div id="left-handle" class="vertical-handle"></div>
+        <div id="left-handle" class="vertical-handle">
+        </div>
         <div id="center-panel" class="vertical-panel">
                 <div id="center-top-bar" class="horizontal-bar bottom-border">
                         <div id="tab-bar" class="tab-bar">
-                                <ul id="tab-list" class="tab-list"></ul>
-                                <div id="tab-drop-line" class="tab-drop-line"></div>
+                                <ul id="tab-list" class="tab-list">
+                                </ul>
+                                <div id="tab-drop-line" class="tab-drop-line">
+                                </div>
                         </div>
                 </div>
-                <div id="center-container" class="container"></div>
+                <div id="center-container" class="container">
+                </div>
         </div>
-        <div id="right-handle" class="vertical-handle"></div>
+        <div id="right-handle" class="vertical-handle">
+        </div>
         <div id="right-panel" class="vertical-panel left-border">
                 <div id="top-panel" class="horizontal-panel bottom-border">
-                        <div id="top-top-bar" class="horizontal-bar bottom-border"></div>
-                        <div id="top-container" class="container"></div>
+                        <div id="top-top-bar" class="horizontal-bar bottom-border">
+                                <div class="preview-toolbar">
+                                        <div class="left-controls">
+                                                <button id="run-restart-button">
+                                                </button>
+                                                <button id="pause-resume-button">
+                                                </button>
+                                                <button id="next-frame-button">
+                                                </button>
+                                                <button id="stop-button">
+                                                </button>
+                                        </div>
+                                        <div class="right-controls">
+                                                <!-- TODO: Toggle Hot Reload Button? -->
+                                                <!-- TODO: Fullscreen Button? -->
+                                                <a
+                                                        id="preview-tab-button"
+                                                        title="Open Preview in New Tab"
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                >
+                                                </a>
+                                        </div>
+                                </div>
+                        </div>
+                        <div id="top-container" class="container">
+                                <iframe
+                                        id="preview"
+                                        class="preview"
+                                        allow="
+                                                autoplay https://microstudio.io;
+                                                gamepad https://microstudio.io;
+                                                midi https://microstudio.io;
+                                                camera https://microstudio.io;
+                                                microphone https://microstudio.io;
+                                        "
+                                >
+                                </iframe>
+                        </div>
                 </div>
-                <div id="middle-handle" class="horizontal-handle"></div>
+                <div id="middle-handle" class="horizontal-handle">
+                </div>
                 <div id="bottom-panel" class="horizontal-panel">
-                        <div id="bottom-top-bar" class="horizontal-bar bottom-border"></div>
-                        <div id="bottom-container" class="container"></div>
+                        <div id="bottom-top-bar" class="horizontal-bar bottom-border">
+                        </div>
+                        <div id="bottom-container" class="container">
+                        </div>
                 </div>
         </div>
 </div>

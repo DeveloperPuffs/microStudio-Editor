@@ -68,7 +68,7 @@ export class Modal {
                         button.textContent = buttonOption.label;
                         button.style.color = "var(foreground-color-1)";
                         button.style.backgroundColor = buttonOption.destructive
-                                ? "var(--dark-invalid-color)"
+                                ? "var(--dark-destructive-color)"
                                 : "var(--background-color-2)";
 
                         button.addEventListener("click", () => {

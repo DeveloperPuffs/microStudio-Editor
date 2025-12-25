@@ -3,6 +3,7 @@ import * as Adaper from "./adapter.ts";
 import * as Monaco from "./monaco.ts";
 import * as Layout from "./layout.ts";
 import * as Files from "./files.ts";
+import * as Preview from "./preview.ts";
 import * as Views from "./views.ts";
 
 import html from "./editor.html?raw";
@@ -26,6 +27,7 @@ export async function setupEditor(container: HTMLElement, pluginInterface: Adape
 
         Layout.initialize();
         Files.initialize();
+        Preview.intialize();
 
         const fileViews = new Map<Files.FileNode, Views.View>();
         let currentView: Views.View | undefined;
