@@ -10,7 +10,7 @@ export default defineConfig({
                 terserOptions: {
                         compress: {
                                 passes: 3,
-                                drop_console: true,
+                                // drop_console: true,
                                 drop_debugger: true
                         },
                         mangle: {

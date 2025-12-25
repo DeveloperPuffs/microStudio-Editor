@@ -68,4 +68,16 @@ export async function setupEditor(container: HTMLElement, pluginInterface: Adape
         });
 
         await Plugin.initialize(pluginInterface);
+
+        // microStudio added event listeners for these events to the document that uses preventDefault()
+        // Fortunately, these event listeners were added in the bubble phase so I can just use
+        // stopPropagation() to stop the keyboard events right before it reaches the document.
+
+        document.body.addEventListener("keydown", event => {
+                event.stopPropagation();
+        });
+
+        document.body.addEventListener("keyup", event => {
+                event.stopPropagation();
+        });
 };

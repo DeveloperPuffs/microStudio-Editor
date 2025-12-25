@@ -59,7 +59,7 @@
 
 .editor code, .editor pre {
         font-family: monospace;
-        background-color: var(--background-color-2);
+        background-color: rgba(0, 0, 0, var(--opacity-3));
         padding-left: 4px;
         padding-right: 4px;
         padding-top: 2px;
@@ -443,8 +443,11 @@
 .modal {
         background-color: var(--background-color-1);
         color: var(--text-color);
-        border-radius: 6px;
-        padding: 24px;
+        border-radius: 5px;
+        padding-left: 64px;
+        padding-right: 64px;
+        padding-top: 36px;
+        padding-bottom: 36px;
         min-width: 300px;
         max-width: 90vw;
         display: flex;
@@ -453,8 +456,89 @@
 }
 
 .modal-header {
-        font-size: large;
+        font-size: larger;
         font-weight: bold;
+}
+
+.input-wrapper {
+        display: flex;
+        padding-top: 12px;
+        padding-bottom: 24px;
+}
+
+.input-wrapper.multiline {
+        flex-direction: column;
+        gap: 8px;
+}
+
+.input-wrapper.inline {
+        flex-direction: row;
+        align-items: center;
+        gap: 12px;
+}
+
+.input-wrapper .label-wrapper {
+        display: flex;
+        user-select: none;
+        flex-direction: row;
+        align-items: center;
+        gap: 8px;
+}
+
+.input-wrapper .label-wrapper .information {
+        position: relative;
+}
+
+.input-wrapper .label-wrapper .information .icon {
+        padding: 2px;
+        background-color: var(--background-color-2);
+        color: var(--foreground-color-2);
+        border-radius: 50%;
+        font-size: x-small;
+        cursor: pointer;
+}
+
+.input-wrapper .label-wrapper .information .tooltip {
+        position: absolute;
+        top: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        padding-left: 12px;
+        padding-right: 12px;
+        padding-top: 8px;
+        padding-bottom: 8px;
+        background: var(--background-color-2);
+        color: var(--foreground-color-1);
+        border-radius: 2px;
+        font-size: x-small;
+        white-space: normal;
+        width: 240px;
+        display: none;
+        z-index: 10;
+}
+
+.input-wrapper .label-wrapper .information:hover .tooltip {
+        display: block;
+}
+
+.input-wrapper input {
+        border: none;
+        outline: none;
+        color: var(--foreground-color-1);
+        background-color: var(--background-color-2);
+        padding-left: 8px;
+        padding-right: 8px;
+        padding-top: 4px;
+        padding-bottom: 4px;
+        font-family: inherit;
+        border-radius: 2px;
+        width: 240px;
+        max-width: 100%;
+}
+
+.input-wrapper input::placeholder {
+        color: var(--foreground-color-3);
+        opacity: 1;
 }
 
 .modal-footer {

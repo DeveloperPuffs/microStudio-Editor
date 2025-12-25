@@ -70,7 +70,8 @@ export async function setupMonaco() {
 
         instance = window.monaco.editor.create(wrapper, {
                 automaticLayout: true,
-                theme: "vs-dark"
+                theme: "vs-dark",
+                fontSize: 12
         });
 
         instance.addAction({
