@@ -41,7 +41,7 @@ addMockFile(
         JSON.stringify({ version: 1 }, null, 2)
 );
 
-export const MockPluginInterface = Object.freeze({
+export const PluginInterface = Object.freeze({
         listFiles(root, callback) {
                 const list = [];
 

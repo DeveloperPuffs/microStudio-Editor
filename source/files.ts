@@ -1308,7 +1308,7 @@ function closeFile(file: FileNode) {
         }
 }
 
-let rootNode: RootNode | undefined;
+let rootNode: RootNode;
 let currentDrag: FileDrag | TabDrag | undefined;
 
 export function getRootNode() {

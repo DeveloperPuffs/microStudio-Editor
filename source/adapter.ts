@@ -33,7 +33,7 @@ export interface PluginInterface {
         deleteFile: (path: string, callback: DeleteFileCallback) => void;
 }
 
-export const roots = Object.freeze([
+export const roots: readonly string[] = Object.freeze([
         "source",
         "sprites",
         "maps",
@@ -45,12 +45,12 @@ export const roots = Object.freeze([
 // A more useful representation of a file based off of a full path
 // It can be used to read and write the corresponding file
 export class FileContext {
-        private path: string;
         private pluginInterface: PluginInterface;
+        private path: string;
 
-        constructor(path: string, pluginInterface: PluginInterface) {
-                this.path = path;
+        constructor(pluginInterface: PluginInterface, path: string) {
                 this.pluginInterface = pluginInterface;
+                this.path = path;
         }
 
         get folders(): string[] {
@@ -111,30 +111,77 @@ export class FileContext {
                                         return;
                                 }
 
-                                console.log(`Wrote file content for "${path}": ${error}`);
                                 resolve(result);
                         });
                 });
         }
 }
 
+async function loadRoot(pluginInterface: PluginInterface, root: string) {
+        if (!roots.includes(root)) {
+                return [];
+        }
+
+        return new Promise<PluginFile[]>((resolve, _) => {
+                pluginInterface.listFiles(root, (list, error) => {
+                        if (error !== undefined) {
+                                console.log(`Failed to list files for root \"${root}\": ${error}`);
+                                resolve([]);
+                                return;
+                        }
+
+                        resolve(list);
+                });
+        });
+}
+
 export async function loadFiles(pluginInterface: PluginInterface) {
         const pluginFiles = await Promise.all<PluginFile[]>(roots.map(root => {
-                return new Promise<PluginFile[]>((resolve, _) => {
-                        pluginInterface.listFiles(root, (list, error) => {
-                                if (error !== undefined) {
-                                        console.log(`Failed to list files for root \"${root}\": ${error}`);
-                                        resolve([]);
-                                        return;
-                                }
-
-                                resolve(list);
-                        });
-                });
+                return loadRoot(pluginInterface, root);
         }));
 
         return pluginFiles.flat().map(pluginFile => {
                 const fullPath = `${pluginFile.path}.${pluginFile.ext}`;
-                return new FileContext(fullPath, pluginInterface);
+                return new FileContext(pluginInterface, fullPath);
         });
+}
+
+export async function findFile(pluginInterface: PluginInterface, path: string) {
+        const parts = path.split("/");
+        if (parts.length === 0) {
+                return undefined;
+        }
+
+        const pluginFiles = await loadRoot(pluginInterface, parts[0]);
+        const foundFile = pluginFiles.find(pluginFile => {
+                const fullPath = `${pluginFile.path}.${pluginFile.ext}`;
+                return fullPath === path;
+        });
+
+        if (foundFile === undefined) {
+                return undefined;
+        }
+
+        const fileContext = new FileContext(pluginInterface, path);
+        return fileContext;
+}
+
+export async function createFile(pluginInterface: PluginInterface, path: string, content?: unknown) {
+        const parts = path.split("/");
+        if (parts.length === 0) {
+                return undefined;
+        }
+
+        if (!roots.includes(parts[0])) {
+                return undefined;
+        }
+
+        const foundFile = await findFile(pluginInterface, path);
+        if (foundFile !== undefined) {
+                return foundFile;
+        }
+
+        const fileContext = new FileContext(pluginInterface, path);
+        await fileContext.writeContent(content);
+        return fileContext;
 }

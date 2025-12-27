@@ -1,16 +1,82 @@
 import * as Adaper from "./adapter.ts";
+import * as Manifest from "./mainfest.ts";
+import * as Monaco from "./monaco.ts";
+import * as Layout from "./layout.ts";
 import * as Files from "./files.ts";
+import * as Views from "./views.ts";
+import * as Preview from "./preview.ts";
+
+import html from "./plugin.html?raw";
+import css from "./plugin.css?inline";
 
 export async function initialize(pluginInterface: Adaper.PluginInterface) {
-        const files = await Adaper.loadFiles(pluginInterface);
+        await Monaco.setupMonaco();
 
-        const pluginFile = files.find(file => {
-                return file.fullPath === "assets/__editor" && file.extension === "json";
+        const fontAwesomeScript = document.createElement("script");
+        fontAwesomeScript.src = "https://kit.fontawesome.com/03b601dbb5.js";
+        fontAwesomeScript.crossOrigin = "anonymous";
+        fontAwesomeScript.defer = true;
+
+        document.head.appendChild(fontAwesomeScript);
+
+        const stylesheet = document.createElement("style");
+        stylesheet.textContent = css;
+        document.head.appendChild(stylesheet);
+
+        const wrapper = document.createElement("main");
+        wrapper.classList.add("wrapper");
+        document.body.appendChild(wrapper);
+
+        wrapper.innerHTML = html;
+
+        Layout.initialize();
+        Files.initialize();
+        Preview.intialize();
+
+        await Manifest.initialize(pluginInterface);
+
+        const fileViews = new Map<Files.FileNode, Views.View>();
+        let currentView: Views.View | undefined;
+
+        Files.registerEventListener(Files.FileEvent.FILE_OPENED, (file: unknown) => {
+                if (!(file instanceof Files.FileNode)) {
+                        return;
+                }
+
+                currentView?.dismiss();
+
+                if (!fileViews.has(file)) {
+                        const view = new Views.TextView(file);
+                        fileViews.set(file, view);
+                }
+
+                currentView = fileViews.get(file);
+                currentView?.present();
+        })
+
+        Files.registerEventListener(Files.FileEvent.FILE_CLOSED, (file: unknown) => {
+                if (!(file instanceof Files.FileNode)) {
+                        return;
+                }
+
+                const view = fileViews.get(file);
+                if (view === undefined) {
+                        return;
+                }
+
+                if (view === currentView) {
+                        currentView = undefined;
+                        view.dismiss();
+                }
+
+                fileViews.delete(file);
+                view.dispose();
         });
 
-        const rootNode = Files.getRootNode()!;
+        const rootNode = Files.getRootNode();
+        const files = await Adaper.loadFiles(pluginInterface);
 
-        // Maps the full paths of folders to their corresponding nodes\
+        // Maps the full paths of folders to their corresponding nodes
         const folderIndex = new Map<string, Files.FolderNode>();
 
         function ensureFolderExistence(file: Adaper.FileContext): Files.FolderNode | undefined {
@@ -34,7 +100,7 @@ export async function initialize(pluginInterface: Adaper.PluginInterface) {
         }
 
         for (const file of files) {
-                if (file === pluginFile) {
+                if (file.fullPath === Manifest.path) {
                         continue;
                 }
 
@@ -46,4 +112,16 @@ export async function initialize(pluginInterface: Adaper.PluginInterface) {
                 const fileNode = new Files.FileNode(file);
                 parentFolder.addChild(fileNode);
         }
-}
+
+        // microStudio added event listeners for these events to the document that uses preventDefault()
+        // Fortunately, these event listeners were added in the bubble phase so I can just use
+        // stopPropagation() to stop the keyboard events right before it reaches the document.
+
+        document.body.addEventListener("keydown", event => {
+                event.stopPropagation();
+        });
+
+        document.body.addEventListener("keyup", event => {
+                event.stopPropagation();
+        });
+};

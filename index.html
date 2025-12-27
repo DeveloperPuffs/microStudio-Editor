@@ -22,17 +22,10 @@
                 </style>
         </head>
         <body>
-                <main>
-                        <span>Loading editor...</span>
-                </main>
                 <script type="module">
-                        import * as Editor from "/source/editor.ts";
-                        import { MockPluginInterface } from "/testing/mock_plugin_interface.js";
-
-                        const documentMain = document.querySelector("main");
-                        documentMain.replaceChildren();
-
-                        await Editor.setupEditor(documentMain, MockPluginInterface);
+                        import * as Plugin from "/source/plugin.ts";
+                        import * as Mock from "/testing/plugin_interface.js";
+                        await Plugin.initialize(Mock.PluginInterface);
                 </script>
         </body>
 </html>

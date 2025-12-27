@@ -15,7 +15,7 @@ export default defineConfig({
                         },
                         mangle: {
                                 toplevel: true,
-                                reserved: ["setupEditor"]
+                                reserved: ["initialize"]
                         },
                         format: {
                                 comments: false
@@ -23,10 +23,10 @@ export default defineConfig({
                 },
 
                 lib: {
-                        entry: "source/editor.ts",
-                        name: "window.Editor",
+                        entry: "source/plugin.ts",
+                        name: "window.Plugin",
                         formats: ["iife"],
-                        fileName: () => "editor.js"
+                        fileName: () => "plugin.js"
                 },
 
                 rollupOptions: {

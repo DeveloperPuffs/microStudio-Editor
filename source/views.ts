@@ -31,7 +31,7 @@ abstract class BaseView {
 
 export type View = BaseView;
 
-export class CodeView extends BaseView {
+export class TextView extends BaseView {
         private static saveWarned: boolean = false;
 
         private model: any;
@@ -107,8 +107,8 @@ export class CodeView extends BaseView {
                         return;
                 }
 
-                if (!CodeView.saveWarned) {
-                        CodeView.saveWarned = true;
+                if (!TextView.saveWarned) {
+                        TextView.saveWarned = true;
                         const saveWarningModal = new Modal.Modal({
                                 title: "Editor Out of Sync",
                                 body: `
