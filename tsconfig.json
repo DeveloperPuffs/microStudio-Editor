@@ -1,8 +1,9 @@
 {
         "compilerOptions": {
+                "types": ["node"],
                 "target": "es2020",
                 "module": "esnext",
-                "moduleResolution": "node",
+                "moduleResolution": "bundler",
                 "lib": [
                         "es2020",
                         "dom",
@@ -15,8 +16,7 @@
                 "strictNullChecks": true,
                 "esModuleInterop": true,
                 "allowImportingTsExtensions": true,
-                "forceConsistentCasingInFileNames": true,
-                "skipLibCheck": true
+                "forceConsistentCasingInFileNames": true
         },
         "include": [
                 "source"

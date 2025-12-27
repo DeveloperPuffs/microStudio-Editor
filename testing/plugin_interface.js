@@ -20,23 +20,25 @@ function addMockFile(fullPath, content) {
 
 addMockFile("source/main.js", `
 function hello() {
-\treturn "Hello from main";
+        return "Hello from main";
 }
 `);
 
 addMockFile("source/utils/math.js", `
 export function add(a, b) {
-\treturn a + b;
+        return a + b;
 }
 `);
 
 addMockFile("source/script.ms", `
 init = function()
-\tprint("Hello from microScript")
+        print("Hello from microScript")
 end
 `);
 
 addMockFile("assets/__editor.json", {
+        indentType: "spaces",
+        indentSize: 8,
         username: "PlasmaPuffs",
         projectSlug: "secret_game",
         projectSecretCode: "ABCD1234"

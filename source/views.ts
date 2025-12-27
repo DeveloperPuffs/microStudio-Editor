@@ -2,6 +2,8 @@ import * as Files from "./files.ts";
 import * as Adapter from "./adapter.ts";
 import * as Monaco from "./monaco.ts";
 import * as Modal from "./modal.ts";
+import * as Manifest from "./mainfest.ts";
+
 abstract class BaseView {
         protected file: Files.FileNode;
         protected context: Adapter.FileContext;
@@ -34,10 +36,12 @@ export type View = BaseView;
 export class TextView extends BaseView {
         private static saveWarned: boolean = false;
 
-        private model: any;
-        private instance: any;
         private savedCode: string;
-        private saveEventListener: () => void;
+        private model: Monaco.Type.editor.IModel;
+        private instance: Monaco.Type.editor.IStandaloneCodeEditor;
+        private saveEventListener?: Monaco.EventListenerController;
+        private indentTypeListener: Manifest.ChangeListenerController;
+        private indentSizeListener: Manifest.ChangeListenerController;
 
         constructor(file: Files.FileNode) {
                 super(file);
@@ -74,13 +78,26 @@ export class TextView extends BaseView {
                 this.instance = Monaco.getInstance();
                 this.model = window.monaco.editor.createModel(this.savedCode, language);
 
+                this.indentTypeListener = Manifest.registerChangeListener("indentType", value => {
+                        this.model.updateOptions({
+                                insertSpaces: value === "spaces"
+                        });
+                });
+
+                this.indentSizeListener = Manifest.registerChangeListener("indentSize", value => {
+                        this.model.updateOptions({
+                                tabSize: value
+                        });
+                });
+
+                this.indentTypeListener.trigger();
+                this.indentSizeListener.trigger();
+
                 // TODO: The string is compared on every keystroke, maybe use a flag instead for large files
                 this.model.onDidChangeContent(() => {
                         const currentCode = this.model.getValue();
                         this.file.setUnsaved(currentCode !== this.savedCode);
                 });
-
-                this.saveEventListener = this.writeContent.bind(this);
 
                 this.file.saveCallback = async () => {
                         await this.writeContent();
@@ -141,17 +158,26 @@ export class TextView extends BaseView {
                 this.wrapper.appendChild(Monaco.wrapper);
                 this.instance.setModel(this.model);
 
-                Monaco.registerEventListener(Monaco.MonacoEvent.SAVE_FILE, this.saveEventListener);
+                this.saveEventListener = Monaco.registerEventListener(async event => {
+                        if (event !== Monaco.MonacoEvent.SAVE_FILE) {
+                                return;
+                        }
+
+                        await this.writeContent();
+                });
         }
 
         dismiss() {
                 super.dismiss();
-                Monaco.removeEventListener(Monaco.MonacoEvent.SAVE_FILE, this.saveEventListener);
+                this.saveEventListener?.remove();
+                this.saveEventListener = undefined;
         }
 
         dispose() {
                 super.dispose();
                 this.model.dispose();
                 this.file.saveCallback = undefined;
+                this.indentTypeListener.remove();
+                this.indentSizeListener.remove();
         }
 }

@@ -1,54 +1,42 @@
+import type * as Monaco from "monaco-editor";
+export { Monaco as Type };
+
 declare global {
         interface Window {
                 require: any;
-                monaco: typeof import("monaco-editor");
+                monaco: typeof Monaco
         }
 }
-
-export {};
 
 export enum MonacoEvent {
         SAVE_FILE
 }
 
-const eventListenersMap = new Map<MonacoEvent, (() => void)[]>();
+const eventListeners = new Set<(event: MonacoEvent) => void>();
 
-export function registerEventListener(event: MonacoEvent, listener: () => void) {
-        const eventListeners = eventListenersMap.get(event) ?? [];
-        eventListeners.push(listener);
+export type EventListenerController = {
+        remove: () => void;
+};
 
-        eventListenersMap.set(event, eventListeners);
-}
-
-export function removeEventListener(event: MonacoEvent, listener: () => void) {
-        const eventListeners = eventListenersMap.get(event);
-        if (eventListeners == undefined) {
-                return;
-        }
-
-        const index = eventListeners.indexOf(listener);
-        if (index === -1) {
-                return;
-        }
-
-        eventListeners.splice(index, 1);
+export function registerEventListener(eventListener: (event: MonacoEvent) => void): EventListenerController {
+        eventListeners.add(eventListener);
+        return Object.freeze({
+                remove: () => {
+                        eventListeners.delete(eventListener);
+                }
+        } as const);
 }
 
 function triggerEvent(event: MonacoEvent) {
-        const eventListeners = eventListenersMap.get(event);
-        if (eventListeners === undefined) {
-                return;
-        }
-
         for (const eventListener of eventListeners) {
-                eventListener();
+                eventListener(event);
         }
 }
 
 export const wrapper = document.createElement("div");
 wrapper.classList.add("monaco-wrapper");
 
-let instance: any | undefined;
+let instance: Monaco.editor.IStandaloneCodeEditor;
 
 export function getInstance() {
         return instance;
@@ -69,6 +57,7 @@ export async function initialize() {
         });
 
         instance = window.monaco.editor.create(wrapper, {
+                detectIndentation: false,
                 automaticLayout: true,
                 theme: "vs-dark",
                 fontSize: 12
@@ -81,8 +70,6 @@ export async function initialize() {
                         window.monaco.KeyMod.CtrlCmd |
                         window.monaco.KeyCode.KeyS
                 ],
-                precondition: null,
-                keybindingContext: null,
                 contextMenuGroupId: "navigation",
                 contextMenuOrder: 1,
                 run: () => triggerEvent(MonacoEvent.SAVE_FILE)
@@ -284,7 +271,7 @@ export async function initialize() {
                 // TODO: This behavior should probably also be disabled inside comments,
                 // but I tried and idk how I would be able to easily do that.
 
-                const position = instance.getPosition();
+                const position = instance.getPosition()!;
                 const lineText = model.getLineContent(position.lineNumber);
                 if (position.column <= lineText.trimEnd().length ||!INDENT_REGEX.test(lineText.trim())) {
                         instance.trigger("keyboard", "type", { text: "\n" });

@@ -31,7 +31,6 @@ export async function initialize(pluginInterface: Adaper.PluginInterface) {
         Files.initialize();
         Preview.intialize();
 
-        await Manifest.initialize(pluginInterface);
         await Monaco.initialize();
 
         const fileViews = new Map<Files.FileNode, Views.View>();
@@ -115,15 +114,6 @@ export async function initialize(pluginInterface: Adaper.PluginInterface) {
                 parentFolder.addChild(fileNode);
         }
 
-        // microStudio added event listeners for these events to the document that uses preventDefault()
-        // Fortunately, these event listeners were added in the bubble phase so I can just use
-        // stopPropagation() to stop the keyboard events right before it reaches the document.
-
-        document.body.addEventListener("keydown", event => {
-                event.stopPropagation();
-        });
-
-        document.body.addEventListener("keyup", event => {
-                event.stopPropagation();
-        });
+        // load this asynchronously on startup
+        Manifest.initialize(pluginInterface);
 };

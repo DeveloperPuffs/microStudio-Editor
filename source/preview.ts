@@ -7,11 +7,11 @@ enum PreviewState {
         PAUSED
 }
 
-async function getPreviewURL() {
-        let username = Manifest.manifestData.username;
-        let projectSlug = Manifest.manifestData.projectSlug;
-        let projectSecretCode = Manifest.manifestData.projectSecretCode;
+let username: string | undefined;
+let projectSlug: string | undefined;
+let projectSecretCode: string | undefined;
 
+async function getPreviewURL() {
         if (username === undefined || projectSlug === undefined || projectSecretCode === undefined) {
                 const modal = new Modal.FormModal({
                         title: "Preview Setup",
@@ -57,11 +57,11 @@ async function getPreviewURL() {
                         return undefined;
                 }
 
-                username = Manifest.manifestData.username = results["microStudio Username"];
-                projectSlug = Manifest.manifestData.projectSlug = results["Project Slug"];
-                projectSecretCode = Manifest.manifestData.projectSecretCode = results["Project Secret Code"];
-
-                await Manifest.saveManifest();
+                Manifest.setManifestValues({
+                        username: results["microStudio Username"],
+                        projectSlug: results["Project Slug"],
+                        projectSecretCode: results["Project Secret Code"]
+                });
         }
 
         return `https://microstudio.io/${username}/${projectSlug}/${projectSecretCode}/?debug`;
@@ -74,6 +74,10 @@ const resumeMessage =  JSON.stringify({name: "resume"});
 const nextFrameMessage =  JSON.stringify({name: "step_forward"});
 
 export function intialize() {
+        Manifest.registerChangeListener("username", value => username = value);
+        Manifest.registerChangeListener("projectSlug", value => projectSlug = value);
+        Manifest.registerChangeListener("projectSecretCode", value => projectSecretCode = value);
+
         const preview = document.querySelector<HTMLIFrameElement>("#preview")!;
 
         const runRestartButton = document.querySelector<HTMLButtonElement>("#run-restart-button")!;
