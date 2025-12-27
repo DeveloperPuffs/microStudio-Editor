@@ -159,6 +159,9 @@ document.addEventListener("mouseup", () => {
                 return;
         }
 
+        const previewIFrame = document.querySelector<HTMLIFrameElement>("#preview")!;
+        previewIFrame.style.pointerEvents = "auto";
+
         resizingHandle = undefined;
         document.body.style.userSelect = "";
         document.body.style.cursor = "";
@@ -207,7 +210,10 @@ export function initialize() {
         const rightHandle = document.querySelector<HTMLDivElement>("#right-handle")!;
         const middleHandle = document.querySelector<HTMLDivElement>("#middle-handle")!;
 
+        const previewIFrame = document.querySelector<HTMLIFrameElement>("#preview")!;
+
         leftHandle.addEventListener("mousedown", event => {
+                previewIFrame.style.pointerEvents = "none";
                 document.body.style.userSelect = "none";
                 document.body.style.cursor = "ew-resize";
                 keepHorizontalDefaults = false;
@@ -217,6 +223,7 @@ export function initialize() {
         });
 
         rightHandle.addEventListener("mousedown", event => {
+                previewIFrame.style.pointerEvents = "none";
                 document.body.style.userSelect = "none";
                 document.body.style.cursor = "ew-resize";
                 keepHorizontalDefaults = false;
@@ -226,6 +233,7 @@ export function initialize() {
         });
 
         middleHandle.addEventListener("mousedown", event => {
+                previewIFrame.style.pointerEvents = "none";
                 document.body.style.userSelect = "none";
                 document.body.style.cursor = "ns-resize";
                 keepVerticalDefaults = false;
