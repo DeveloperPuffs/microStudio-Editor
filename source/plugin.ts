@@ -75,6 +75,9 @@ export async function initialize(pluginInterface: Adaper.PluginInterface) {
         const rootNode = Files.getRootNode();
         const files = await Adaper.loadFiles(pluginInterface);
 
+        // TODO: Use the "sprites/icon" file to make sure that the editor has access to the entire project
+        // not just the editor/ subfolder because that file can't be deleted, renamed, or moved.
+
         // Maps the full paths of folders to their corresponding nodes
         const folderIndex = new Map<string, Files.FolderNode>();
 

@@ -36,14 +36,11 @@ init = function()
 end
 `);
 
-addMockFile(
-        "assets/__editor.json",
-        JSON.stringify({
-                username: "PlasmaPuffs",
-                projectSlug: "secret_game",
-                projectSecretCode: "ABCD1234"
-        }, null, 2)
-);
+addMockFile("assets/__editor.json", {
+        username: "PlasmaPuffs",
+        projectSlug: "secret_game",
+        projectSecretCode: "ABCD1234"
+});
 
 export const PluginInterface = Object.freeze({
         listFiles(root, callback) {

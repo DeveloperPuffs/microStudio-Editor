@@ -38,31 +38,36 @@ export async function initialize(pluginInterface: Adaper.PluginInterface) {
                 return;
         }
 
-        const manifestText = await manifestFile.readContent();
-        const manifestContent = JSON.parse(manifestText! as string);
+        const manifestContent = await manifestFile.readContent();
+        if (typeof manifestContent !== "object") {
+                await saveManifest();
+                return;
+        }
 
-        const indentType = manifestContent["indentType"];
+        const manifestRecord = manifestContent as Record<string, unknown>;
+
+        const indentType = manifestRecord["indentType"];
         if (indentType === "tab" || indentType === "spaces") {
                 manifestData.indentType = indentType;
         }
 
-        const indentSize = manifestContent["indentSize"];
+        const indentSize = manifestRecord["indentSize"];
         if (indentSize === 2 || indentSize === 4 || indentSize === 8) {
                 manifestData.indentSize = indentSize;
         }
 
-        const username = manifestContent["username"];
+        const username = manifestRecord["username"];
         if (typeof username === "string" && username.trim() !== "") {
                 manifestData.username = username;
         }
 
-        const projectSlug = manifestContent["projectSlug"];
+        const projectSlug = manifestRecord["projectSlug"];
         // TODO: More checks can be applied here to make sure it is at least a valid part inside a link
         if (typeof projectSlug === "string" && projectSlug.trim() !== "") {
                 manifestData.projectSlug = projectSlug;
         }
 
-        const projectSecretCode = manifestContent["projectSecretCode"];
+        const projectSecretCode = manifestRecord["projectSecretCode"];
         // TODO: More checks can be applied here to make sure it is at least a valid secret code
         if (typeof projectSecretCode === "string" && projectSecretCode.length === 8) {
                 manifestData.projectSecretCode = projectSecretCode;
