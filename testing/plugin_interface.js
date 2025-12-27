@@ -20,25 +20,29 @@ function addMockFile(fullPath, content) {
 
 addMockFile("source/main.js", `
 function hello() {
-        return "Hello from main";
+\treturn "Hello from main";
 }
 `);
 
 addMockFile("source/utils/math.js", `
 export function add(a, b) {
-        return a + b;
+\treturn a + b;
 }
 `);
 
 addMockFile("source/script.ms", `
 init = function()
-        print("Hello from microScript");
+\tprint("Hello from microScript")
 end
 `);
 
 addMockFile(
-        "assets/config.json",
-        JSON.stringify({ version: 1 }, null, 2)
+        "assets/__editor.json",
+        JSON.stringify({
+                username: "PlasmaPuffs",
+                projectSlug: "secret_game",
+                projectSecretCode: "ABCD1234"
+        }, null, 2)
 );
 
 export const PluginInterface = Object.freeze({

@@ -10,8 +10,6 @@ import html from "./plugin.html?raw";
 import css from "./plugin.css?inline";
 
 export async function initialize(pluginInterface: Adaper.PluginInterface) {
-        await Monaco.setupMonaco();
-
         const fontAwesomeScript = document.createElement("script");
         fontAwesomeScript.src = "https://kit.fontawesome.com/03b601dbb5.js";
         fontAwesomeScript.crossOrigin = "anonymous";
@@ -34,6 +32,7 @@ export async function initialize(pluginInterface: Adaper.PluginInterface) {
         Preview.intialize();
 
         await Manifest.initialize(pluginInterface);
+        await Monaco.initialize();
 
         const fileViews = new Map<Files.FileNode, Views.View>();
         let currentView: Views.View | undefined;

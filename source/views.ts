@@ -92,7 +92,7 @@ export class TextView extends BaseView {
         private async readContent() {
                 try {
                         const content = await this.context.readContent();
-                        this.savedCode = content as string;
+                        this.savedCode = content! as string;
                         this.model.setValue(this.savedCode);
                 } catch (error) {
                         const message = `Failed to read source file content: ${error}`; 

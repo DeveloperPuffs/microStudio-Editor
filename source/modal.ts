@@ -22,7 +22,7 @@ export const okButton: ButtonOptions = Object.freeze({
 
 export class Modal {
         private resolve?: (_: unknown | PromiseLike<unknown>) => void;
-        private overlay: HTMLDivElement;
+        private background: HTMLDivElement;
         protected element: HTMLDivElement;
         protected headerElement?: HTMLDivElement;
         protected bodyElement?: HTMLDivElement;
@@ -31,11 +31,10 @@ export class Modal {
         constructor({title, body, buttonOptions}: ModalOptions = {}) {
                 this.resolve = undefined;
 
-                this.overlay = document.createElement("div");
-                this.overlay.className = "modal-overlay";
-
-                this.overlay.addEventListener("click", event => {
-                        event.stopPropagation();
+                this.background = document.createElement("div");
+                this.background.classList.add("modal-background");
+                this.background.addEventListener("click", event => {
+                        event.stopImmediatePropagation();
                 });
 
                 this.element = document.createElement("div");
@@ -80,12 +79,12 @@ export class Modal {
                         this.footerElement.appendChild(button);
                 }
 
-                this.overlay.appendChild(this.element);
+                this.background.appendChild(this.element);
         }
 
         prompt() {
-                const editor = document.querySelector<HTMLDivElement>("#editor")!;
-                editor.appendChild(this.overlay);
+                const modalOverlay = document.querySelector<HTMLDivElement>("#modal-overlay")!;
+                modalOverlay.appendChild(this.background);
 
                 return new Promise<unknown>(resolve => {
                         this.resolve = resolve;
@@ -93,7 +92,7 @@ export class Modal {
         }
 
         close(result: unknown) {
-                this.overlay.remove();
+                this.background.remove();
                 this.resolve?.(result);
                 this.resolve = undefined;
         }

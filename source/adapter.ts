@@ -47,10 +47,20 @@ export const roots: readonly string[] = Object.freeze([
 export class FileContext {
         private pluginInterface: PluginInterface;
         private path: string;
+        private _exists: boolean;
 
-        constructor(pluginInterface: PluginInterface, path: string) {
+        constructor(pluginInterface: PluginInterface, path: string, exists: boolean) {
                 this.pluginInterface = pluginInterface;
                 this.path = path;
+                this._exists = exists;
+        }
+
+        get exists() {
+                return this._exists;
+        }
+
+        private set exists(exists) {
+                this._exists = exists;
         }
 
         get folders(): string[] {
@@ -82,6 +92,10 @@ export class FileContext {
         }
 
         async readContent() {
+                if (!this.exists) {
+                        return undefined;
+                }
+
                 return new Promise<unknown>((resolve, reject) => {
                         const path = this.getPluginInterfacePath();
                         this.pluginInterface.readFile(path, (content, error) => {
@@ -111,6 +125,7 @@ export class FileContext {
                                         return;
                                 }
 
+                                this.exists = true;
                                 resolve(result);
                         });
                 });
@@ -142,7 +157,7 @@ export async function loadFiles(pluginInterface: PluginInterface) {
 
         return pluginFiles.flat().map(pluginFile => {
                 const fullPath = `${pluginFile.path}.${pluginFile.ext}`;
-                return new FileContext(pluginInterface, fullPath);
+                return new FileContext(pluginInterface, fullPath, true);
         });
 }
 
@@ -162,11 +177,11 @@ export async function findFile(pluginInterface: PluginInterface, path: string) {
                 return undefined;
         }
 
-        const fileContext = new FileContext(pluginInterface, path);
+        const fileContext = new FileContext(pluginInterface, path, true);
         return fileContext;
 }
 
-export async function createFile(pluginInterface: PluginInterface, path: string, content?: unknown) {
+export async function createFile(pluginInterface: PluginInterface, path: string) {
         const parts = path.split("/");
         if (parts.length === 0) {
                 return undefined;
@@ -181,7 +196,5 @@ export async function createFile(pluginInterface: PluginInterface, path: string,
                 return foundFile;
         }
 
-        const fileContext = new FileContext(pluginInterface, path);
-        await fileContext.writeContent(content);
-        return fileContext;
+        return new FileContext(pluginInterface, path, false);
 }

@@ -1,3 +1,4 @@
+import * as Manifest from "./mainfest.ts";
 import * as Modal from "./modal.ts";
 
 enum PreviewState {
@@ -6,64 +7,64 @@ enum PreviewState {
         PAUSED
 }
 
-let username = "";
-let projectSlug = "";
-let secretCode = "";
-let previewInformationKnown = false;
+async function getPreviewURL() {
+        let username = Manifest.manifestData.username;
+        let projectSlug = Manifest.manifestData.projectSlug;
+        let projectSecretCode = Manifest.manifestData.projectSecretCode;
 
-function getPreviewURL() {
-        return `https://microstudio.io/${username}/${projectSlug}/${secretCode}/?debug`;
-}
+        if (username === undefined || projectSlug === undefined || projectSecretCode === undefined) {
+                const modal = new Modal.FormModal({
+                        title: "Preview Setup",
+                        body: /* TODO: Specify that you can edit this later in the editor plugin settings. */ `
+                                To open the project preview, the plugin needs to know the exact preview URL.
+                                Please enter your microStudio username, your project slug and your project secret
+                                code. These values are used to construct that URL so your project can be loaded
+                                correctly. Note that these values are case sensitive.
+                        `,
+                        inputOptions: [
+                                {
+                                        label: "microStudio Username",
+                                        placeholder: "PlasmaPuffs",
+                                        value: username
+                                },
+                                {
+                                        label: "Project Slug",
+                                        placeholder: "secret_game",
+                                        value: projectSlug,
+                                        description: `
+                                                A project's slug is the name used in the URL of the project.
+                                                You can find your project's slug by going to the project settings
+                                                and copuing the value in under <code>Project Slug</code>.
+                                        `
+                                },
+                                {
+                                        label: "Project Secret Code",
+                                        placeholder: "ABCD1234",
+                                        value: projectSecretCode,
+                                        description: `
+                                                A project's secret code is used in the project URL to
+                                                test and run the project when it isn't set to public.
+                                                You can find your project's secret code by going to the
+                                                project settings and copying the 8-letter code under
+                                                <code>Project Secret Code</code>.
+                                        `
+                                }
+                        ]
+                });
 
-async function getPreviewInformation() {
-        const modal = new Modal.FormModal({
-                title: "Preview Setup",
-                body: /* TODO: Specify that you can edit this later in the editor plugin settings. */ `
-                        To open the project preview, the plugin needs to know the exact preview URL.
-                        Please enter your microStudio username, your project slug and your project secret
-                        code. These values are used to construct that URL so your project can be loaded
-                        correctly. Note that these values are case sensitive.
-                        <br><br>
-                        You only need to fill out this information once. 
-                `,
-                inputOptions: [
-                        {
-                                label: "microStudio Username",
-                                placeholder: "PlasmaPuffs"
-                        },
-                        {
-                                label: "Project Slug",
-                                placeholder: "awesome_game",
-                                description: `
-                                        A project's slug is the name used in the URL of the project.
-                                        You can find your project's slug by going to the project settings
-                                        and copuing the value in under <code>Project Slug</code>.
-                                `
-                        },
-                        {
-                                label: "Project Secret Code",
-                                placeholder: "ABCD1234",
-                                description: `
-                                        A project's secret code is used in the project URL to
-                                        test and run the project when it isn't set to public.
-                                        You can find your project's secret code by going to the
-                                        project settings and copying the 8-letter code under
-                                        <code>Project Secret Code</code>.
-                                `
-                        }
-                ]
-        });
+                const results = await modal.prompt();
+                if (results === undefined) {
+                        return undefined;
+                }
 
-        const results = await modal.prompt();
-        if (results === undefined) {
-                return false;
+                username = Manifest.manifestData.username = results["microStudio Username"];
+                projectSlug = Manifest.manifestData.projectSlug = results["Project Slug"];
+                projectSecretCode = Manifest.manifestData.projectSecretCode = results["Project Secret Code"];
+
+                await Manifest.saveManifest();
         }
 
-        username = results["microStudio Username"];
-        projectSlug = results["Project Slug"];
-        secretCode = results["Project Secret Code"];
-        previewInformationKnown = true;
-        return true;
+        return `https://microstudio.io/${username}/${projectSlug}/${projectSecretCode}/?debug`;
 }
 
 let previewState = PreviewState.IDLE;
@@ -96,33 +97,42 @@ export function intialize() {
         previewTabButton.innerHTML = `<i class="fa-solid fa-arrow-up-right-from-square"></i>`;
         previewTabButton.href = "";
 
+        function stopRunning() {
+                previewState = PreviewState.IDLE;
+
+                runRestartButton.innerHTML = `<i class="fa-solid fa-play"></i>`;
+                runRestartButton.title = "Run Preview";
+
+                pauseResumeButton.style.backgroundColor = "var(--dark-disabled-color)";
+                pauseResumeButton.innerHTML = `<i class="fa-solid fa-pause"></i>`
+                pauseResumeButton.title = "";
+
+                nextFrameButton.style.backgroundColor = "var(--dark-disabled-color)";
+                nextFrameButton.title = "";
+
+                stopButton.style.backgroundColor = "var(--dark-disabled-color)";
+                stopButton.title = "";
+
+                preview.src = "";
+        }
+
         previewTabButton.addEventListener("click", async event => {
-                if (previewInformationKnown) {
-                        return;
+                previewTabButton.href = await getPreviewURL() ?? "";
+                if (previewTabButton.href !== "") {
+                        event.preventDefault();
                 }
-
-                event.preventDefault();
-
-                if (!(await getPreviewInformation())) {
-                        return;
-                }
-
-                previewTabButton.href = getPreviewURL();
         });
 
         runRestartButton.addEventListener("click", async () => {
                 switch (previewState) {
                         case PreviewState.IDLE: {
-                                if (!previewInformationKnown) {
-                                        if (!(await getPreviewInformation())) {
-                                                return;
-                                        }
-
-                                        previewTabButton.href = getPreviewURL();
+                                preview.src = await getPreviewURL() || "";
+                                if (preview.src === "") {
+                                        stopRunning();
+                                        return;
                                 }
 
                                 previewState = PreviewState.RUNNING;
-                                preview.src = getPreviewURL();
 
                                 pauseResumeButton.style.backgroundColor = "var(--dark-prominent-color)";
                                 stopButton.style.backgroundColor = "var(--dark-destructive-color)";
@@ -136,7 +146,10 @@ export function intialize() {
                         case PreviewState.RUNNING: case PreviewState.PAUSED: {
                                 previewState = PreviewState.RUNNING;
                                 preview.src = "";
-                                preview.src = getPreviewURL();
+                                preview.src = await getPreviewURL() || "";
+                                if (preview.src === "") {
+                                        return;
+                                }
 
                                 nextFrameButton.style.backgroundColor = "var(--dark-disabled-color)";
                                 nextFrameButton.title = "";
@@ -183,22 +196,7 @@ export function intialize() {
                 if (previewState === PreviewState.IDLE) {
                         return;
                 }
-
-                previewState = PreviewState.IDLE;
-
-                runRestartButton.innerHTML = `<i class="fa-solid fa-play"></i>`;
-                runRestartButton.title = "Run Preview";
-
-                pauseResumeButton.style.backgroundColor = "var(--dark-disabled-color)";
-                pauseResumeButton.innerHTML = `<i class="fa-solid fa-pause"></i>`
-                pauseResumeButton.title = "";
-
-                nextFrameButton.style.backgroundColor = "var(--dark-disabled-color)";
-                nextFrameButton.title = "";
-
-                stopButton.style.backgroundColor = "var(--dark-disabled-color)";
-                stopButton.title = "";
-
-                preview.src = "";
+                
+                stopRunning();
         });
 }
